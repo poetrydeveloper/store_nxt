@@ -9,7 +9,7 @@ export default function AdminPage() {
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-8">Админ панель CRM</h1>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Link href="/admin/inventory" 
                 className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
             <div className="text-2xl mb-2">📦</div>
@@ -22,6 +22,20 @@ export default function AdminPage() {
             <div className="text-2xl mb-2">🏷️</div>
             <h2 className="text-xl font-semibold mb-2">Товары</h2>
             <p className="text-gray-600">Управление карточками товаров</p>
+          </Link>
+
+          <Link href="/admin/categories" 
+                className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
+            <div className="text-2xl mb-2">📁</div>
+            <h2 className="text-xl font-semibold mb-2">Категории</h2>
+            <p className="text-gray-600">Управление категориями товаров</p>
+          </Link>
+
+          <Link href="/admin/brands" 
+                className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
+            <div className="text-2xl mb-2">🏢</div>
+            <h2 className="text-xl font-semibold mb-2">Бренды</h2>
+            <p className="text-gray-600">Управление брендами производителей</p>
           </Link>
 
           <Link href="/admin/cash" 
