@@ -1,13 +1,375 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// prisma/schema.prisma
 
 generator client {
-  provider = "prisma-client"
-  output   = "../app/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========== ENUMS ==========
+
+enum StatusEnum {
+  CANDIDATE
+  IN_REQUEST
+  IN_DELIVERY
+  RECEIVED
+  SHORTAGE_CONFIRMED
+  SURPLUS_CONFIRMED
+}
+
+enum PhysicalStatus {
+  IN_STORE
+  SOLD
+  LOST
+  IN_DISASSEMBLED
+  IN_COLLECTED
+  ABSORBED
+}
+
+enum UnitDisassemblyStatus {
+  MONOLITH
+  DISASSEMBLED
+  PARTIAL
+  COLLECTED
+  RESTORED
+}
+
+enum CashEventType {
+  SALE
+  RETURN
+  EXPENSE
+  INCOME
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  TRANSFER
+}
+
+enum LogEventType {
+  STATUS_CHANGE
+  PHYSICAL_STATUS_CHANGE
+  DISASSEMBLY_STATUS_CHANGE
+  SALE
+  RETURN
+  DISASSEMBLE
+  COLLECT
+  LOST
+  MANUAL_RECEIPT
+  PRICE_UPDATE
+  RESERVED
+  UNRESERVED
+}
+
+enum OrderStatus {
+  DRAFT
+  AWAITING_PAYMENT
+  PARTIALLY_PAID
+  FULLY_PAID
+  SHIPPED
+  COMPLETED
+  BAD_DEBT
+}
+
+// ========== ЧАСТЬ 1: КАРТОЧКА ТОВАРА ==========
+
+model Brand {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  logo        String?
+  description String?
+  
+  products    Product[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String
+  slug        String    @unique
+  description String?
+  image       String?
+  level       Int       @default(0)
+  parentId    Int?
+  
+  parent      Category? @relation("CategoryToCategory", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryToCategory")
+  products    Product[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Product {
+  id            Int     @id @default(autoincrement())
+  categoryId    Int
+  brandId       Int?
+  code          String  @unique
+  name          String
+  description   String?
+  mainImage     String?
+  galleryImages String[]
+  
+  category      Category @relation(fields: [categoryId], references: [id])
+  brand         Brand?   @relation(fields: [brandId], references: [id])
+  images        ProductImage[]
+  units         ProductUnit[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model ProductImage {
+  id          Int    @id @default(autoincrement())
+  productId   Int
+  url         String
+  storageType String @default("local")
+  sortOrder   Int    @default(0)
+  
+  product     Product @relation(fields: [productId], references: [id])
+  
+  createdAt   DateTime @default(now())
+}
+
+// ========== ЧАСТЬ 2: ДВИЖЕНИЕ ТОВАРА ==========
+
+model Supplier {
+  id              Int     @id @default(autoincrement())
+  name            String
+  contactPerson   String?
+  phone           String?
+  email           String?
+  address         String?
+  
+  productUnits    ProductUnit[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Customer {
+  id              Int     @id @default(autoincrement())
+  name            String
+  phone           String?
+  email           String?
+  address         String?
+  balance         Decimal @default(0)
+  
+  productUnits    ProductUnit[]
+  payments        Payment[]
+  debtTracking    DebtTracking?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model ProductUnit {
+  id                    Int                  @id @default(autoincrement())
+  uniqueSerialNumber    String               @unique
+  purchasePrice         Decimal?
+  isReserved            Boolean              @default(false)
+  createdAt             DateTime             @default(now())
+  
+  // Логистические статусы
+  status                StatusEnum           @default(CANDIDATE)
+  
+  // Физические статусы
+  physicalStatus        PhysicalStatus       @default(IN_STORE)
+  disassemblyStatus     UnitDisassemblyStatus @default(MONOLITH)
+  
+  // Продажи и возвраты
+  isReturned            Boolean              @default(false)
+  returnedAt            DateTime?
+  salePrice             Decimal?
+  soldAt                DateTime?
+  
+  // Внешние ключи
+  productId             Int
+  supplierId            Int?
+  customerId            Int?
+  orderId               Int?
+  manualReceiptId       Int?                @unique
+  parentProductUnitId   Int?
+  
+  // Связи
+  product               Product              @relation(fields: [productId], references: [id])
+  supplier              Supplier?            @relation(fields: [supplierId], references: [id])
+  customer              Customer?            @relation(fields: [customerId], references: [id])
+  order                 Order?               @relation(fields: [orderId], references: [id])
+  manualReceipt         ManualReceipt?       @relation(fields: [manualReceiptId], references: [id])
+  parentProductUnit     ProductUnit?         @relation("ProductUnitHierarchy", fields: [parentProductUnitId], references: [id])
+  childProductUnits     ProductUnit[]        @relation("ProductUnitHierarchy")
+  
+  disassemblyScenario   DisassemblyScenario? @relation(fields: [disassemblyScenarioId], references: [id])
+  disassemblyScenarioId Int?
+  
+  cashEventItems        CashEventItem[]
+  logs                  ProductUnitLog[]
+  
+  updatedAt             DateTime             @updatedAt
+}
+
+model Order {
+  id                    Int     @id @default(autoincrement())
+  orderNumber           String  @unique
+  orderDate             DateTime @default(now())
+  expectedDeliveryDate  DateTime?
+  
+  productUnits          ProductUnit[]
+  shortageResolution    ShortageResolution?
+  prepayment            Prepayment?
+  payments              Payment[]
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model ManualReceipt {
+  id                    Int      @id @default(autoincrement())
+  receiptDate           DateTime @default(now())
+  acceptedBy            String
+  comment               String?
+  pricePending          Boolean  @default(true)
+  
+  productUnit           ProductUnit?
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model ShortageResolution {
+  id                    Int      @id @default(autoincrement())
+  expectedQuantity      Int
+  actualReceived        Int
+  resolutionDeadline    DateTime
+  isResolved            Boolean  @default(false)
+  resolutionNote        String?
+  
+  orderId               Int      @unique
+  order                 Order    @relation(fields: [orderId], references: [id])
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model DisassemblyScenario {
+  id                  Int      @id @default(autoincrement())
+  name                String
+  parentProductCode   String
+  childProductCodes   Json     // JSON массив артикулов частей
+  partsCount          Int
+  isActive            Boolean  @default(true)
+  
+  productUnits        ProductUnit[]
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// ========== ЧАСТЬ 3: КАССА И ФИНАНСЫ ==========
+
+model CashDay {
+  id                  Int      @id @default(autoincrement())
+  date                DateTime @default(now())
+  isClosed            Boolean  @default(false)
+  total               Decimal  @default(0)
+  
+  events              CashEvent[]
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model CashEvent {
+  id                  Int            @id @default(autoincrement())
+  type                CashEventType
+  totalAmount         Decimal
+  description         String?
+  paymentMethod       PaymentMethod  @default(CASH)
+  createdBy           String
+  
+  cashDayId           Int
+  cashDay             CashDay        @relation(fields: [cashDayId], references: [id])
+  items               CashEventItem[]
+  
+  createdAt           DateTime       @default(now())
+}
+
+model CashEventItem {
+  id                  Int            @id @default(autoincrement())
+  quantity            Int            @default(1)
+  pricePerUnit        Decimal
+  subtotal            Decimal
+  
+  cashEventId         Int
+  cashEvent           CashEvent      @relation(fields: [cashEventId], references: [id])
+  productUnitId       Int
+  productUnit         ProductUnit    @relation(fields: [productUnitId], references: [id])
+  
+  createdAt           DateTime       @default(now())
+}
+
+model Payment {
+  id                  Int            @id @default(autoincrement())
+  amount              Decimal
+  paymentDate         DateTime       @default(now())
+  method              PaymentMethod  @default(CASH)
+  status              String
+  notes               String?
+  
+  customerId          Int
+  customer            Customer       @relation(fields: [customerId], references: [id])
+  orderId             Int?
+  order               Order?         @relation(fields: [orderId], references: [id])
+  
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+}
+
+model Prepayment {
+  id                  Int            @id @default(autoincrement())
+  amount              Decimal
+  isFullyPaid         Boolean        @default(false)
+  deadline            DateTime
+  remainingDebt       Decimal
+  
+  orderId             Int            @unique
+  order               Order          @relation(fields: [orderId], references: [id])
+  
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+}
+
+model DebtTracking {
+  id                  Int            @id @default(autoincrement())
+  totalOwed           Decimal        @default(0)
+  totalPaid           Decimal        @default(0)
+  currentDebt         Decimal        @default(0)
+  lastReminderSent    DateTime?
+  
+  customerId          Int            @unique
+  customer            Customer       @relation(fields: [customerId], references: [id])
+  
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+}
+
+// ========== ЛОГИРОВАНИЕ ==========
+
+model ProductUnitLog {
+  id                  Int            @id @default(autoincrement())
+  type                LogEventType
+  message             String
+  meta                Json?
+  
+  productUnitId       Int
+  productUnit         ProductUnit    @relation(fields: [productUnitId], references: [id])
+  
+  createdAt           DateTime       @default(now())
 }
