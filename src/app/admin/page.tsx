@@ -28,6 +28,7 @@ export default function AdminPage() {
               <Link href="/admin/orders" className="block text-blue-600 hover:underline">📋 Заказы</Link>
               <Link href="/admin/suppliers" className="block text-blue-600 hover:underline">🚚 Поставщики</Link>
               <Link href="/admin/customers" className="block text-blue-600 hover:underline">👥 Покупатели</Link>
+              <Link href="/admin/disassembly" className="block text-blue-600 hover:underline">🔧 Сценарии разборки</Link>
             </div>
           </div>
 
