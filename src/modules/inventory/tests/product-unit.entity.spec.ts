@@ -57,3 +57,23 @@ describe('ProductUnit - Бизнес-логика товара', () => {
     });
   });
 });
+
+describe('ProductUnit creation', () => {
+  it('should create product unit with correct initial status', () => {
+    const unit = new ProductUnit({
+      uniqueSerialNumber: 'NEW-001',
+      purchasePrice: 500,
+      isReserved: false,
+      createdAt: new Date(),
+      status: StatusEnum.RECEIVED,
+      physicalStatus: PhysicalStatus.IN_STORE,
+      disassemblyStatus: UnitDisassemblyStatus.MONOLITH,
+      isReturned: false,
+      productId: 1,
+    });
+    
+    expect(unit.getUniqueSerialNumber()).toBe('NEW-001');
+    expect(unit.getPhysicalStatus()).toBe(PhysicalStatus.IN_STORE);
+    expect(unit.isReserved()).toBe(false);
+  });
+});

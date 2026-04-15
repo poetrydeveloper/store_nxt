@@ -25,6 +25,7 @@ export default function AdminPage() {
             <h2 className="text-lg font-semibold mb-3 border-b pb-2">📦 Движение товаров</h2>
             <div className="space-y-2">
               <Link href="/admin/inventory" className="block text-blue-600 hover:underline">📊 Склад</Link>
+              <Link href="/admin/orders" className="block text-blue-600 hover:underline">📋 Заказы</Link>
               <Link href="/admin/suppliers" className="block text-blue-600 hover:underline">🚚 Поставщики</Link>
               <Link href="/admin/customers" className="block text-blue-600 hover:underline">👥 Покупатели</Link>
             </div>
