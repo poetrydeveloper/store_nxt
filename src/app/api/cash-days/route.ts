@@ -16,27 +16,58 @@ export async function GET() {
   }
 }
 
-// POST /api/cash-days - открыть новую смену
+// POST /api/cash-days - открыть или возобновить смену за сегодня
 export async function POST() {
   try {
-    // Проверяем, есть ли открытая смена
-    const openDay = await prisma.cashDay.findFirst({
-      where: { isClosed: false },
-    });
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
-    if (openDay) {
-      return NextResponse.json({ error: 'Уже есть открытая смена' }, { status: 400 });
-    }
-
-    const cashDay = await prisma.cashDay.create({
-      data: {
-        date: new Date(),
-        isClosed: false,
-        total: 0,
+    // Ищем смену за сегодня
+    let todayCashDay = await prisma.cashDay.findFirst({
+      where: {
+        date: {
+          gte: today,
+          lt: tomorrow,
+        },
       },
     });
 
-    return NextResponse.json({ success: true, data: cashDay }, { status: 201 });
+    // Если смены за сегодня нет - создаём новую
+    if (!todayCashDay) {
+      todayCashDay = await prisma.cashDay.create({
+        data: {
+          date: new Date(),
+          isClosed: false,
+          total: 0,
+        },
+      });
+      return NextResponse.json({ 
+        success: true, 
+        data: todayCashDay,
+        message: 'Новая кассовая смена открыта' 
+      }, { status: 201 });
+    }
+
+    // Если смена за сегодня есть, но закрыта - открываем её снова
+    if (todayCashDay.isClosed) {
+      const reopened = await prisma.cashDay.update({
+        where: { id: todayCashDay.id },
+        data: { isClosed: false },
+      });
+      return NextResponse.json({ 
+        success: true, 
+        data: reopened,
+        message: 'Кассовая смена возобновлена' 
+      });
+    }
+
+    // Если смена уже открыта
+    return NextResponse.json({ 
+      error: 'Смена уже открыта. Закройте её, чтобы начать новую.' 
+    }, { status: 400 });
+    
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -49,9 +80,10 @@ export async function PUT(request: NextRequest) {
     const action = searchParams.get('action');
 
     if (action !== 'close') {
-      return NextResponse.json({ error: 'Неверный параметр' }, { status: 400 });
+      return NextResponse.json({ error: 'Неверный параметр. Используйте action=close' }, { status: 400 });
     }
 
+    // Находим открытую смену (любую, не обязательно сегодня)
     const openDay = await prisma.cashDay.findFirst({
       where: { isClosed: false },
     });
@@ -65,14 +97,25 @@ export async function PUT(request: NextRequest) {
       where: { cashDayId: openDay.id },
     });
 
-    const total = events.reduce((sum, event) => sum + event.totalAmount, 0);
+    const total = events.reduce((sum, event) => {
+      if (event.type === 'SALE' || event.type === 'INCOME') {
+        return sum + event.totalAmount;
+      } else if (event.type === 'RETURN' || event.type === 'EXPENSE') {
+        return sum - event.totalAmount;
+      }
+      return sum;
+    }, 0);
 
     const closedDay = await prisma.cashDay.update({
       where: { id: openDay.id },
       data: { isClosed: true, total },
     });
 
-    return NextResponse.json({ success: true, data: closedDay, message: `Смена закрыта. Итог: ${total} руб.` });
+    return NextResponse.json({ 
+      success: true, 
+      data: closedDay, 
+      message: `Смена закрыта. Итог: ${total} руб.` 
+    });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

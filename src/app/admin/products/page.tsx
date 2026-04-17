@@ -3,6 +3,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import CategoryTree from '@/components/ui/CategoryTree';
 
 interface Product {
   id: number;
@@ -36,11 +37,15 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [images, setImages] = useState<ProductImage[]>([]);
+  
+  // Состояния для выбора категории через дерево
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  const [selectedCategoryName, setSelectedCategoryName] = useState<string>('');
+  
   const [form, setForm] = useState({
     code: '',
     name: '',
     description: '',
-    categoryId: '',
     brandId: '',
   });
 
@@ -79,6 +84,11 @@ export default function ProductsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!selectedCategoryId) {
+      alert('Выберите категорию из дерева');
+      return;
+    }
+    
     const res = await fetch('/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -86,15 +96,20 @@ export default function ProductsPage() {
         code: form.code,
         name: form.name,
         description: form.description,
-        categoryId: parseInt(form.categoryId),
+        categoryId: parseInt(selectedCategoryId),
         brandId: form.brandId ? parseInt(form.brandId) : undefined,
         galleryImages: [],
       }),
     });
     
     if (res.ok) {
-      setForm({ code: '', name: '', description: '', categoryId: '', brandId: '' });
+      setForm({ code: '', name: '', description: '', brandId: '' });
+      setSelectedCategoryId('');
+      setSelectedCategoryName('');
       fetchProducts();
+    } else {
+      const error = await res.json();
+      alert(error.error);
     }
   };
 
@@ -125,6 +140,11 @@ export default function ProductsPage() {
   const handleSelectProduct = (product: Product) => {
     setSelectedProduct(product);
     fetchImages(product.id);
+  };
+
+  const handleSelectCategory = (id: number, name: string) => {
+    setSelectedCategoryId(id.toString());
+    setSelectedCategoryName(name);
   };
 
   if (loading) return <div className="p-4">Загрузка...</div>;
@@ -163,17 +183,32 @@ export default function ProductsPage() {
                 className="w-full border rounded px-3 py-2"
                 rows={2}
               />
-              <select
-                value={form.categoryId}
-                onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-                className="w-full border rounded px-3 py-2"
-                required
-              >
-                <option value="">Выберите категорию</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
+              
+              {/* Выбор категории через дерево */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Категория *</label>
+                <CategoryTree 
+                  onSelectCategory={handleSelectCategory}
+                  selectedCategoryId={selectedCategoryId ? parseInt(selectedCategoryId) : null}
+                  className="mb-2"
+                />
+                {selectedCategoryId && (
+                  <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
+                    ✅ Выбрана категория: <strong>{selectedCategoryName}</strong> (id: {selectedCategoryId})
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCategoryId('');
+                        setSelectedCategoryName('');
+                      }}
+                      className="ml-2 text-red-500 text-xs"
+                    >
+                      ✖
+                    </button>
+                  </div>
+                )}
+              </div>
+              
               <select
                 value={form.brandId}
                 onChange={(e) => setForm({ ...form, brandId: e.target.value })}
@@ -184,6 +219,7 @@ export default function ProductsPage() {
                   <option key={brand.id} value={brand.id}>{brand.name}</option>
                 ))}
               </select>
+              
               <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
                 Создать
               </button>
@@ -198,25 +234,30 @@ export default function ProductsPage() {
                   <th className="px-4 py-2 text-left">ID</th>
                   <th className="px-4 py-2 text-left">Артикул</th>
                   <th className="px-4 py-2 text-left">Название</th>
+                  <th className="px-4 py-2 text-left">Категория</th>
                   <th className="px-4 py-2 text-left"></th>
                 </tr>
               </thead>
               <tbody>
-                {products.map((product) => (
-                  <tr key={product.id} className="border-t cursor-pointer hover:bg-gray-50">
-                    <td className="px-4 py-2">{product.id}</td>
-                    <td className="px-4 py-2 font-mono text-sm">{product.code}</td>
-                    <td className="px-4 py-2">{product.name}</td>
-                    <td className="px-4 py-2">
-                      <button
-                        onClick={() => handleSelectProduct(product)}
-                        className="text-blue-600 text-sm"
-                      >
-                        {selectedProduct?.id === product.id ? '✓ Выбрано' : 'Выбрать'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {products.map((product) => {
+                  const category = categories.find(c => c.id === product.categoryId);
+                  return (
+                    <tr key={product.id} className="border-t cursor-pointer hover:bg-gray-50">
+                      <td className="px-4 py-2">{product.id}</td>
+                      <td className="px-4 py-2 font-mono text-sm">{product.code}</td>
+                      <td className="px-4 py-2">{product.name}</td>
+                      <td className="px-4 py-2 text-sm text-gray-500">{category?.name || '—'}</td>
+                      <td className="px-4 py-2">
+                        <button
+                          onClick={() => handleSelectProduct(product)}
+                          className="text-blue-600 text-sm"
+                        >
+                          {selectedProduct?.id === product.id ? '✓ Выбрано' : 'Выбрать'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

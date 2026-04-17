@@ -1,8 +1,11 @@
+// src/app/admin/inventory/components/StockTable.tsx
+
 interface ProductUnit {
   id: number;
   uniqueSerialNumber: string;
   purchasePrice?: number;
   physicalStatus: string;
+  status: string;
   product: { name: string };
 }
 
@@ -10,36 +13,45 @@ interface StockTableProps {
   units: ProductUnit[];
 }
 
-const getStatusColor = (status: string) => {
-  const colors: Record<string, string> = {
-    IN_STORE: 'bg-green-100 text-green-800',
-    SOLD: 'bg-blue-100 text-blue-800',
-    LOST: 'bg-red-100 text-red-800',
-    IN_DISASSEMBLED: 'bg-yellow-100 text-yellow-800',
-    IN_COLLECTED: 'bg-purple-100 text-purple-800',
-    ABSORBED: 'bg-gray-100 text-gray-800',
-  };
-  return colors[status] || 'bg-gray-100 text-gray-800';
+const getStatusColor = (physicalStatus: string, status: string) => {
+  if (status === 'IN_REQUEST') return 'bg-yellow-100 text-yellow-800';
+  if (physicalStatus === 'IN_STORE' && (status === 'RECEIVED' || status === 'IN_STORE')) return 'bg-green-100 text-green-800';
+  if (physicalStatus === 'SOLD') return 'bg-blue-100 text-blue-800';
+  if (physicalStatus === 'LOST') return 'bg-red-100 text-red-800';
+  if (physicalStatus === 'IN_DISASSEMBLED') return 'bg-purple-100 text-purple-800';
+  if (physicalStatus === 'IN_COLLECTED') return 'bg-indigo-100 text-indigo-800';
+  return 'bg-gray-100 text-gray-800';
 };
 
-const getStatusLabel = (status: string) => {
-  const labels: Record<string, string> = {
-    IN_STORE: 'В магазине',
-    SOLD: 'Продан',
-    LOST: 'Потерян',
-    IN_DISASSEMBLED: 'Разобран',
-    IN_COLLECTED: 'В коллекции',
-    ABSORBED: 'Поглощён',
-  };
-  return labels[status] || status;
+const getStatusLabel = (physicalStatus: string, status: string) => {
+  if (status === 'IN_REQUEST') return '⏳ Заказан (не принят)';
+  if (physicalStatus === 'IN_STORE' && (status === 'RECEIVED' || status === 'IN_STORE')) return '📦 В магазине';
+  if (physicalStatus === 'SOLD') return '💰 Продан';
+  if (physicalStatus === 'LOST') return '❌ Потерян';
+  if (physicalStatus === 'IN_DISASSEMBLED') return '🔧 Разобран';
+  if (physicalStatus === 'IN_COLLECTED') return '📦 В коллекции';
+  if (physicalStatus === 'ABSORBED') return '🔄 Поглощён';
+  return physicalStatus;
 };
 
 export default function StockTable({ units }: StockTableProps) {
+  const inStoreCount = units.filter(u => 
+    u.physicalStatus === 'IN_STORE' && (u.status === 'RECEIVED' || u.status === 'IN_STORE')
+  ).length;
+  
+  const inRequestCount = units.filter(u => u.status === 'IN_REQUEST').length;
+  const soldCount = units.filter(u => u.physicalStatus === 'SOLD').length;
+
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
       <div className="p-4 bg-gray-50 border-b">
         <h2 className="text-xl font-semibold">📋 Товары на складе</h2>
-        <p className="text-sm text-gray-500">Всего: {units.length} экземпляров</p>
+        <div className="flex gap-4 mt-1 text-sm">
+          <span className="text-gray-500">Всего: {units.length}</span>
+          <span className="text-green-600">В наличии: {inStoreCount}</span>
+          <span className="text-yellow-600">Заказано: {inRequestCount}</span>
+          <span className="text-blue-600">Продано: {soldCount}</span>
+        </div>
       </div>
       <div className="max-h-[600px] overflow-y-auto">
         <table className="w-full">
@@ -54,11 +66,11 @@ export default function StockTable({ units }: StockTableProps) {
           <tbody>
             {units.map((unit) => (
               <tr key={unit.id} className="border-t text-sm">
-                <td className="px-4 py-2 font-mono">{unit.uniqueSerialNumber}</td>
+                <td className="px-4 py-2 font-mono text-xs">{unit.uniqueSerialNumber}</td>
                 <td className="px-4 py-2">{unit.product.name}</td>
                 <td className="px-4 py-2">
-                  <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(unit.physicalStatus)}`}>
-                    {getStatusLabel(unit.physicalStatus)}
+                  <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(unit.physicalStatus, unit.status)}`}>
+                    {getStatusLabel(unit.physicalStatus, unit.status)}
                   </span>
                 </td>
                 <td className="px-4 py-2">{unit.purchasePrice ? `${unit.purchasePrice} ₽` : '—'}</td>
@@ -67,7 +79,7 @@ export default function StockTable({ units }: StockTableProps) {
             {units.length === 0 && (
               <tr>
                 <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
-                  Нет товаров на складе. Добавьте первый экземпляр!
+                  Нет товаров. Создайте заказ и примите товар!
                 </td>
               </tr>
             )}
