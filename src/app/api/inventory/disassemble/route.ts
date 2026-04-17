@@ -3,6 +3,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/modules/shared/database/prisma.service';
 
+// Функция поиска товара по артикулу
+async function findProductByCode(code: string) {
+  const product = await prisma.product.findUnique({
+    where: { code: code },
+  });
+  
+  if (!product) {
+    throw new Error(`Товар с артикулом "${code}" не найден. Сначала создайте товар.`);
+  }
+  
+  return product;
+}
+
 // POST /api/inventory/disassemble
 export async function POST(request: NextRequest) {
   try {
@@ -38,24 +51,45 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Сценарий не подходит для этого товара' }, { status: 400 });
     }
 
-    // Создаём дочерние единицы
-    const childUnits = [];
+    // Получаем массив артикулов частей
     const childCodes = scenario.childProductCodes as string[];
     
-    for (let i = 0; i < scenario.partsCount; i++) {
-      const childCode = childCodes[i] || `PART-${i + 1}`;
+    if (childCodes.length !== scenario.partsCount) {
+      console.warn(`Предупреждение: количество артикулов (${childCodes.length}) не совпадает с partsCount (${scenario.partsCount})`);
+    }
+
+    // Создаём дочерние единицы
+    const childUnits = [];
+    
+    for (let i = 0; i < childCodes.length; i++) {
+      const childCode = childCodes[i];
+      
+      // Находим товар по артикулу
+      let childProduct;
+      try {
+        childProduct = await findProductByCode(childCode);
+      } catch (error: any) {
+        return NextResponse.json({ 
+          error: error.message,
+          details: `Артикул "${childCode}" не найден в системе. Сначала создайте товар с таким артикулом.`
+        }, { status: 400 });
+      }
+      
+      // Создаём дочерний ProductUnit
       const childUnit = await prisma.productUnit.create({
         data: {
           uniqueSerialNumber: `${parentUnit.uniqueSerialNumber}-PART-${i + 1}`,
-          productId: parentUnit.productId,
+          productId: childProduct.id,
           status: 'RECEIVED',
-          physicalStatus: 'IN_COLLECTED',
+          physicalStatus: 'IN_STORE',  // ← ИСПРАВЛЕНО: частица сразу в магазине
           disassemblyStatus: 'PARTIAL',
           isReserved: false,
           isReturned: false,
           parentProductUnitId: parentUnit.id,
         },
+        include: { product: true },
       });
+      
       childUnits.push(childUnit);
     }
 
@@ -74,7 +108,7 @@ export async function POST(request: NextRequest) {
       data: {
         type: 'DISASSEMBLE',
         message: `Разобрано на ${childUnits.length} частей по сценарию ${scenario.name}`,
-        meta: { scenarioId, partsCount: childUnits.length },
+        meta: { scenarioId, partsCount: childUnits.length, childCodes },
         productUnitId: parentUnit.id,
       },
     });
