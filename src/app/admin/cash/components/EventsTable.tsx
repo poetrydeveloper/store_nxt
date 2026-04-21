@@ -21,6 +21,11 @@ interface EventsTableProps {
 }
 
 export default function EventsTable({ events, cashDay }: EventsTableProps) {
+  // Сортируем события по времени (старые сверху, новые снизу)
+  const sortedEvents = [...events].sort((a, b) => 
+    new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
+
   const getTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
       SALE: 'Продажа',
@@ -54,22 +59,24 @@ export default function EventsTable({ events, cashDay }: EventsTableProps) {
   const calculateTotal = () => {
     let total = 0;
     events.forEach(event => {
-      if (event.type === 'SALE' || event.type === 'INCOME') {
-        total += event.totalAmount;
-      } else if (event.type === 'RETURN' || event.type === 'EXPENSE') {
-        total -= event.totalAmount;
+      const amount = typeof event.totalAmount === 'number' ? event.totalAmount : Number(event.totalAmount);
+      if (!isNaN(amount)) {
+        if (event.type === 'SALE' || event.type === 'INCOME') {
+          total += amount;
+        } else if (event.type === 'RETURN' || event.type === 'EXPENSE') {
+          total -= amount;
+        }
       }
     });
     return total;
   };
 
   const exportToExcel = () => {
-    // Подготовка данных для Excel
     const sheetData = [
       ['Время', 'Тип', 'Артикул', 'Товар', 'Цена', 'Сумма'],
     ];
 
-    events.forEach(event => {
+    sortedEvents.forEach(event => {
       const item = event.items?.[0];
       const productCode = item?.productUnit?.product?.code || '';
       const productName = item?.productUnit?.product?.name || event.description || '';
@@ -77,7 +84,7 @@ export default function EventsTable({ events, cashDay }: EventsTableProps) {
       const price = item?.pricePerUnit || amount;
       
       sheetData.push([
-        new Date(event.createdAt).toLocaleTimeString(),
+        new Date(event.createdAt).toLocaleString(),
         `${getTypeIcon(event.type)} ${getTypeLabel(event.type)}`,
         productCode,
         productName,
@@ -86,17 +93,14 @@ export default function EventsTable({ events, cashDay }: EventsTableProps) {
       ]);
     });
 
-    // Добавляем итоговую строку
     const total = calculateTotal();
     sheetData.push(['', '', '', '', 'ИТОГО:', `${total} ₽`]);
 
-    // Создаём workbook и worksheet
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(sheetData);
 
-    // Настройка ширины колонок
     ws['!cols'] = [
-      { wch: 10 }, // Время
+      { wch: 20 }, // Время
       { wch: 12 }, // Тип
       { wch: 15 }, // Артикул
       { wch: 50 }, // Товар
@@ -104,38 +108,12 @@ export default function EventsTable({ events, cashDay }: EventsTableProps) {
       { wch: 15 }, // Сумма
     ];
 
-    // Форматирование заголовка (жирный шрифт)
-    for (let i = 0; i < sheetData[0].length; i++) {
-      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: i });
-      if (!ws[cellAddress]) ws[cellAddress] = {};
-      ws[cellAddress].s = {
-        font: { bold: true, sz: 12 },
-        fill: { fgColor: { rgb: "E0E0E0" } }
-      };
-    }
-
-    // Форматирование итоговой строки
-    const lastRow = sheetData.length - 1;
-    for (let i = 4; i < 6; i++) {
-      const cellAddress = XLSX.utils.encode_cell({ r: lastRow, c: i });
-      if (!ws[cellAddress]) ws[cellAddress] = {};
-      ws[cellAddress].s = {
-        font: { bold: true },
-        fill: { fgColor: { rgb: "FFFF00" } }
-      };
-    }
-
-    // Добавляем worksheet в workbook
     XLSX.utils.book_append_sheet(wb, ws, 'Продажи');
 
-    // Формируем название файла
     const date = cashDay 
       ? new Date(cashDay.date).toLocaleDateString('ru-RU').replace(/\./g, '-')
       : new Date().toLocaleDateString('ru-RU').replace(/\./g, '-');
-    const fileName = `продажи_за_${date}.xlsx`;
-
-    // Сохраняем файл
-    XLSX.writeFile(wb, fileName);
+    XLSX.writeFile(wb, `продажи_за_${date}.xlsx`);
   };
 
   const total = calculateTotal();
@@ -174,7 +152,7 @@ export default function EventsTable({ events, cashDay }: EventsTableProps) {
             </tr>
           </thead>
           <tbody>
-            {events.map((event) => {
+            {sortedEvents.map((event) => {
               const item = event.items?.[0];
               const productCode = item?.productUnit?.product?.code || '';
               const productName = item?.productUnit?.product?.name || event.description || '';
@@ -198,13 +176,14 @@ export default function EventsTable({ events, cashDay }: EventsTableProps) {
                     {productName}
                   </td>
                   <td className="px-2 py-1 text-xs whitespace-nowrap">
-                    {price.toLocaleString()} ₽
+                    {typeof price === 'number' ? price.toLocaleString() : price} ₽
                   </td>
                   <td className={`px-2 py-1 font-medium whitespace-nowrap ${
                     event.type === 'SALE' || event.type === 'INCOME' ? 'text-green-600' : 
                     event.type === 'RETURN' || event.type === 'EXPENSE' ? 'text-red-600' : ''
                   }`}>
-                    {event.type === 'SALE' || event.type === 'INCOME' ? '+' : '-'}{amount.toLocaleString()} ₽
+                    {event.type === 'SALE' || event.type === 'INCOME' ? '+' : '-'}
+                    {typeof amount === 'number' ? amount.toLocaleString() : amount} ₽
                   </td>
                 </tr>
               );
@@ -218,7 +197,7 @@ export default function EventsTable({ events, cashDay }: EventsTableProps) {
                 <td className={`px-2 py-1 text-xs font-bold ${
                   total >= 0 ? 'text-green-600' : 'text-red-600'
                 }`}>
-                  {total >= 0 ? '+' : ''}{total.toLocaleString()} ₽
+                  {total >= 0 ? '+' : ''}{typeof total === 'number' ? total.toLocaleString() : total} ₽
                 </td>
               </tr>
             )}

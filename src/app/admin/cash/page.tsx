@@ -27,7 +27,7 @@ interface CashEvent {
   paymentMethod: string;
   createdAt: string;
   createdBy: string;
-  items?: { productUnit: { uniqueSerialNumber: string; product: { name: string } } }[];
+  items?: { productUnit: { uniqueSerialNumber: string; product: { name: string; code: string } } }[];
 }
 
 interface ProductUnit {
@@ -89,12 +89,19 @@ export default function CashPage() {
   };
 
   const searchUnits = async (query: string) => {
-    if (!query.trim()) {
+    console.log('🔍 searchUnits вызван с query:', query);
+    
+    if (!query.trim() || query.trim().length < 2) {
+      console.log('❌ Запрос слишком короткий, очищаем результаты');
       setSearchResults([]);
+      setShowDropdown(false);
       return;
     }
+    
     const res = await fetch('/api/product-units');
     const data = await res.json();
+    console.log('📦 Получены юниты:', data.data?.length);
+    
     if (data.success) {
       const filtered = data.data.filter((unit: ProductUnit) =>
         (unit.physicalStatus === 'IN_STORE' || (unit.physicalStatus === 'IN_COLLECTED' && unit.disassemblyStatus === 'PARTIAL')) &&
@@ -102,7 +109,9 @@ export default function CashPage() {
          unit.product.name.toLowerCase().includes(query.toLowerCase()) ||
          unit.product.code.toLowerCase().includes(query.toLowerCase()))
       );
+      console.log('🎯 Найдено результатов:', filtered.length);
       setSearchResults(filtered);
+      setShowDropdown(true);
     }
   };
 
@@ -115,7 +124,6 @@ export default function CashPage() {
     fetchCashDay();
     fetchScenarios();
     
-    // Автообновление каждые 10 секунд
     const interval = setInterval(() => {
       fetchCashDay();
     }, 10000);
@@ -137,6 +145,7 @@ export default function CashPage() {
   }, [selectedUnit, scenarios]);
 
   const handleSelectUnit = (unit: ProductUnit) => {
+    console.log('✅ Выбран товар:', unit.product.name);
     setSelectedUnit(unit);
     setSearchTerm(`${unit.product.name} (${unit.uniqueSerialNumber})`);
     setShowDropdown(false);
@@ -335,15 +344,21 @@ export default function CashPage() {
           </button>
         </div>
       ) : (
-        <div className="flex gap-4">
-          <div className="w-72 flex-shrink-0">
-            <CategoryTree selectedUnit={selectedUnit} onSelectUnit={handleSelectUnit} />
+        <div className="flex flex-col gap-4">
+          {/* Дерево товаров - на всю ширину сверху */}
+          <div className="w-full">
+            <CategoryTree 
+              selectedUnit={selectedUnit} 
+              onSelectUnit={handleSelectUnit}
+              searchQuery={searchTerm}
+            />
           </div>
           
-          <div className="flex-1 min-w-0">
+          {/* Блок операций - снизу */}
+          <div className="w-full">
             <OperationTabs operationType={operationType} setOperationType={setOperationType} />
             
-            {/* Поиск */}
+            {/* Быстрый поиск */}
             <div className="bg-white rounded-lg shadow p-2 mb-3">
               <div className="relative">
                 <label className="block text-xs font-medium mb-0.5">🔍 Быстрый поиск</label>

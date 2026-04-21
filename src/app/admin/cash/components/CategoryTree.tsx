@@ -24,14 +24,16 @@ interface Category {
 interface CategoryTreeProps {
   selectedUnit: ProductUnit | null;
   onSelectUnit: (unit: ProductUnit) => void;
+  searchQuery?: string;
 }
 
-export default function CategoryTree({ selectedUnit, onSelectUnit }: CategoryTreeProps) {
+export default function CategoryTree({ selectedUnit, onSelectUnit, searchQuery = '' }: CategoryTreeProps) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [units, setUnits] = useState<ProductUnit[]>([]);
   const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set());
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [matchedUnitIds, setMatchedUnitIds] = useState<Set<number>>(new Set());
 
   const fetchCategories = async () => {
     const res = await fetch('/api/categories');
@@ -120,6 +122,58 @@ export default function CategoryTree({ selectedUnit, onSelectUnit }: CategoryTre
     return groupMap;
   };
 
+  // Поиск и раскрытие категорий при изменении searchQuery
+  useEffect(() => {
+    if (searchQuery && searchQuery.trim().length > 0) {
+      const matched = units.filter(unit =>
+        unit.uniqueSerialNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        unit.product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        unit.product.code.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      
+      const matchedIds = new Set(matched.map(u => u.id));
+      setMatchedUnitIds(matchedIds);
+      
+      // Находим категории, содержащие найденные юниты
+      const categoriesToExpand = new Set<number>();
+      
+      const findCategoryPath = (categoryId: number): void => {
+        categoriesToExpand.add(categoryId);
+        const findParent = (items: Category[], targetId: number): number | null => {
+          for (const item of items) {
+            if (item.id === targetId) return null;
+            if (item.children) {
+              for (const child of item.children) {
+                if (child.id === targetId) return item.id;
+                const found = findParent(item.children, targetId);
+                if (found) return found;
+              }
+            }
+          }
+          return null;
+        };
+        
+        let parentId = findParent(categories, categoryId);
+        while (parentId) {
+          categoriesToExpand.add(parentId);
+          parentId = findParent(categories, parentId);
+        }
+      };
+      
+      matched.forEach(unit => {
+        const categoryId = unit.product.categoryId;
+        findCategoryPath(categoryId);
+      });
+      
+      setExpandedNodes(prev => new Set([...prev, ...categoriesToExpand]));
+      
+      const productIdsToExpand = new Set(matched.map(u => u.product.id));
+      setExpandedProducts(prev => new Set([...prev, ...productIdsToExpand]));
+    } else {
+      setMatchedUnitIds(new Set());
+    }
+  }, [searchQuery, units, categories]);
+
   useEffect(() => {
     fetchCategories();
     fetchUnits();
@@ -191,10 +245,14 @@ export default function CategoryTree({ selectedUnit, onSelectUnit }: CategoryTre
                 const allInStore = productUnits.every(u => u.physicalStatus === 'IN_STORE');
                 const statusText = allInStore ? 'в наличии' : 'смешанный';
                 
+                const hasMatch = productUnits.some(unit => matchedUnitIds.has(unit.id));
+                
                 return (
                   <div key={productId}>
                     <div
-                      className="flex items-center gap-0.5 py-0.5 px-1.5 rounded cursor-pointer hover:bg-gray-100 text-xs"
+                      className={`flex items-center gap-0.5 py-0.5 px-1.5 rounded cursor-pointer hover:bg-gray-100 text-xs ${
+                        hasMatch ? 'bg-red-50 border-l-4 border-red-500' : ''
+                      }`}
                       onClick={(e) => toggleProductGroup(productId, e)}
                     >
                       <span className="w-4 flex-shrink-0 text-gray-400 text-xs">
@@ -202,7 +260,9 @@ export default function CategoryTree({ selectedUnit, onSelectUnit }: CategoryTre
                       </span>
                       <span className="text-gray-400 flex-shrink-0 text-xs">📦</span>
                       <div className="flex flex-col truncate">
-                        <span className="text-xs truncate">{firstUnit.product.name}</span>
+                        <span className={`text-xs truncate ${hasMatch ? 'text-red-700 font-medium' : ''}`}>
+                          {firstUnit.product.name}
+                        </span>
                         <span className="text-xs text-gray-400 font-mono">
                           {firstUnit.product.code}
                         </span>
@@ -219,25 +279,30 @@ export default function CategoryTree({ selectedUnit, onSelectUnit }: CategoryTre
                     
                     {isProductExpanded && (
                       <div style={{ paddingLeft: '20px' }}>
-                        {productUnits.map((unit) => (
-                          <div
-                            key={unit.id}
-                            onClick={() => onSelectUnit(unit)}
-                            className={`flex items-center gap-0.5 py-0.5 px-1.5 rounded cursor-pointer hover:bg-gray-100 text-xs ${
-                              selectedUnit?.id === unit.id ? 'bg-blue-100 border-l-4 border-blue-500' : ''
-                            }`}
-                          >
-                            <span className="text-gray-400 flex-shrink-0 text-xs">🔧</span>
-                            <span className="font-mono text-xs">{unit.uniqueSerialNumber}</span>
-                            <span className={`text-xs ml-auto flex-shrink-0 px-1 rounded ${
-                              unit.physicalStatus === 'IN_STORE' ? 'bg-green-100 text-green-800' : 
-                              unit.physicalStatus === 'IN_COLLECTED' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {unit.physicalStatus === 'IN_STORE' ? 'в наличии' : 
-                               unit.physicalStatus === 'IN_COLLECTED' ? 'в коллекции' : unit.physicalStatus}
-                            </span>
-                          </div>
-                        ))}
+                        {productUnits.map((unit) => {
+                          const isMatched = matchedUnitIds.has(unit.id);
+                          return (
+                            <div
+                              key={unit.id}
+                              onClick={() => onSelectUnit(unit)}
+                              className={`flex items-center gap-0.5 py-0.5 px-1.5 rounded cursor-pointer hover:bg-gray-100 text-xs ${
+                                selectedUnit?.id === unit.id ? 'bg-blue-100 border-l-4 border-blue-500' : ''
+                              } ${isMatched ? 'bg-red-50' : ''}`}
+                            >
+                              <span className="text-gray-400 flex-shrink-0 text-xs">🔧</span>
+                              <span className={`font-mono text-xs ${isMatched ? 'text-red-700 font-bold' : ''}`}>
+                                {unit.uniqueSerialNumber}
+                              </span>
+                              <span className={`text-xs ml-auto flex-shrink-0 px-1 rounded ${
+                                unit.physicalStatus === 'IN_STORE' ? 'bg-green-100 text-green-800' : 
+                                unit.physicalStatus === 'IN_COLLECTED' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'
+                              } ${isMatched ? 'ring-2 ring-red-400' : ''}`}>
+                                {unit.physicalStatus === 'IN_STORE' ? 'в наличии' : 
+                                 unit.physicalStatus === 'IN_COLLECTED' ? 'в коллекции' : unit.physicalStatus}
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
