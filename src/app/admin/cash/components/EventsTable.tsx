@@ -72,40 +72,47 @@ export default function EventsTable({ events, cashDay }: EventsTableProps) {
   };
 
   const exportToExcel = () => {
+    // Формируем данные для Excel в нужном формате
     const sheetData = [
-      ['Время', 'Тип', 'Артикул', 'Товар', 'Цена', 'Сумма'],
+      ['дата', cashDay ? new Date(cashDay.date).toLocaleDateString('ru-RU') : new Date().toLocaleDateString('ru-RU'), '', '', '', ''],
+      ['', 'артикул', 'наименование', '', '', 'стоимость'],
     ];
 
+    // Добавляем каждую продажу (цифры как числа)
     sortedEvents.forEach(event => {
-      const item = event.items?.[0];
-      const productCode = item?.productUnit?.product?.code || '';
-      const productName = item?.productUnit?.product?.name || event.description || '';
-      const amount = event.totalAmount;
-      const price = item?.pricePerUnit || amount;
-      
-      sheetData.push([
-        new Date(event.createdAt).toLocaleString(),
-        `${getTypeIcon(event.type)} ${getTypeLabel(event.type)}`,
-        productCode,
-        productName,
-        price.toString(),
-        `${event.type === 'SALE' || event.type === 'INCOME' ? '+' : '-'}${amount} ₽`,
-      ]);
+      if (event.type === 'SALE') {
+        const item = event.items?.[0];
+        const productCode = item?.productUnit?.product?.code || '';
+        const productName = item?.productUnit?.product?.name || event.description || '';
+        const amount = typeof event.totalAmount === 'number' ? event.totalAmount : Number(event.totalAmount);
+        
+        sheetData.push([
+          '',
+          productCode,
+          productName,
+          '',
+          '',
+          amount,
+        ]);
+      }
     });
 
+    // Добавляем итоговую строку
     const total = calculateTotal();
-    sheetData.push(['', '', '', '', 'ИТОГО:', `${total} ₽`]);
+    sheetData.push(['', '', '', '', '', '']);
+    sheetData.push(['', '', '', '', '', total]);
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(sheetData);
 
+    // Настройка ширины колонок
     ws['!cols'] = [
-      { wch: 20 }, // Время
-      { wch: 12 }, // Тип
-      { wch: 15 }, // Артикул
-      { wch: 50 }, // Товар
-      { wch: 12 }, // Цена
-      { wch: 15 }, // Сумма
+      { wch: 12 }, // дата
+      { wch: 20 }, // артикул
+      { wch: 50 }, // наименование
+      { wch: 5 },  // пустая
+      { wch: 5 },  // пустая
+      { wch: 12 }, // стоимость
     ];
 
     XLSX.utils.book_append_sheet(wb, ws, 'Продажи');
@@ -176,14 +183,14 @@ export default function EventsTable({ events, cashDay }: EventsTableProps) {
                     {productName}
                   </td>
                   <td className="px-2 py-1 text-xs whitespace-nowrap">
-                    {typeof price === 'number' ? price.toLocaleString() : price} ₽
+                    {typeof price === 'number' ? price : Number(price)}
                   </td>
                   <td className={`px-2 py-1 font-medium whitespace-nowrap ${
                     event.type === 'SALE' || event.type === 'INCOME' ? 'text-green-600' : 
                     event.type === 'RETURN' || event.type === 'EXPENSE' ? 'text-red-600' : ''
                   }`}>
                     {event.type === 'SALE' || event.type === 'INCOME' ? '+' : '-'}
-                    {typeof amount === 'number' ? amount.toLocaleString() : amount} ₽
+                    {typeof amount === 'number' ? amount : Number(amount)}
                   </td>
                 </tr>
               );
@@ -197,7 +204,7 @@ export default function EventsTable({ events, cashDay }: EventsTableProps) {
                 <td className={`px-2 py-1 text-xs font-bold ${
                   total >= 0 ? 'text-green-600' : 'text-red-600'
                 }`}>
-                  {total >= 0 ? '+' : ''}{typeof total === 'number' ? total.toLocaleString() : total} ₽
+                  {total >= 0 ? '+' : ''}{typeof total === 'number' ? total : Number(total)}
                 </td>
               </tr>
             )}
