@@ -106,9 +106,20 @@ export default function CashPage() {
     }
   };
 
+  const handleRefreshCashDay = async () => {
+    await fetchCashDay();
+    if (cashDay) await fetchEvents(cashDay.id);
+  };
+
   useEffect(() => {
     fetchCashDay();
     fetchScenarios();
+    
+    // Автообновление каждые 10 секунд
+    const interval = setInterval(() => {
+      fetchCashDay();
+    }, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -117,11 +128,8 @@ export default function CashPage() {
   }, [searchTerm]);
 
   useEffect(() => {
-    console.log('selectedUnit изменился:', selectedUnit);
     if (selectedUnit) {
-      console.log('Товар выбран:', selectedUnit.product.name, selectedUnit.product.code);
       const scenario = scenarios.find(s => s.parentProductCode === selectedUnit.product.code);
-      console.log('Найден сценарий:', scenario);
       setSelectedScenario(scenario || null);
     } else {
       setSelectedScenario(null);
@@ -129,14 +137,12 @@ export default function CashPage() {
   }, [selectedUnit, scenarios]);
 
   const handleSelectUnit = (unit: ProductUnit) => {
-    console.log('handleSelectUnit вызван:', unit);
     setSelectedUnit(unit);
     setSearchTerm(`${unit.product.name} (${unit.uniqueSerialNumber})`);
     setShowDropdown(false);
   };
 
   const handleSelectDisassembledUnit = (unit: ProductUnit) => {
-    console.log('handleSelectDisassembledUnit вызван:', unit);
     setSelectedUnit(unit);
     setSearchTerm(`${unit.product.name} (${unit.uniqueSerialNumber})`);
     setSelectedDisassembledUnit(unit);
@@ -144,8 +150,12 @@ export default function CashPage() {
 
   const handleOpenCashDay = async () => {
     const res = await fetch('/api/cash-days', { method: 'POST' });
-    if (res.ok) fetchCashDay();
-    else alert('Ошибка открытия смены');
+    if (res.ok) {
+      await fetchCashDay();
+    } else {
+      const error = await res.json();
+      alert(error.error);
+    }
   };
 
   const handleSell = async () => {
@@ -169,8 +179,8 @@ export default function CashPage() {
       setSelectedUnit(null);
       setSearchTerm('');
       setSalePrice('');
-      fetchCashDay();
-      if (cashDay) fetchEvents(cashDay.id);
+      await fetchCashDay();
+      if (cashDay) await fetchEvents(cashDay.id);
     } else {
       const error = await res.json();
       alert(error.error);
@@ -182,7 +192,6 @@ export default function CashPage() {
       alert('Выберите товар и убедитесь, что есть сценарий');
       return;
     }
-    console.log('Разборка товара:', selectedUnit.uniqueSerialNumber, 'сценарий:', selectedScenario.id);
     const res = await fetch('/api/inventory/disassemble', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -196,8 +205,8 @@ export default function CashPage() {
       setSelectedUnit(null);
       setSearchTerm('');
       setSelectedScenario(null);
-      fetchCashDay();
-      if (cashDay) fetchEvents(cashDay.id);
+      await fetchCashDay();
+      if (cashDay) await fetchEvents(cashDay.id);
     } else {
       const error = await res.json();
       alert(error.error);
@@ -210,18 +219,13 @@ export default function CashPage() {
       return;
     }
     
-    console.log('Сборка товара:', selectedUnit.uniqueSerialNumber);
-    
-    // Проверяем, есть ли все частицы для сборки
     if (!selectedScenario) {
       alert('Нет сценария для этого товара');
       return;
     }
 
-    // Получаем список всех частиц, необходимых для сборки
     const requiredCodes = selectedScenario.childProductCodes as string[];
     
-    // Проверяем наличие всех частиц
     const res = await fetch('/api/product-units');
     const data = await res.json();
     if (data.success) {
@@ -230,13 +234,11 @@ export default function CashPage() {
         (unit.physicalStatus === 'IN_STORE' || (unit.physicalStatus === 'IN_COLLECTED' && unit.disassemblyStatus === 'PARTIAL'))
       );
       
-      // Группируем по артикулу
       const availableByCode: Record<string, number> = {};
       availableUnits.forEach(unit => {
         availableByCode[unit.product.code] = (availableByCode[unit.product.code] || 0) + 1;
       });
       
-      // Проверяем, есть ли хотя бы один экземпляр каждого артикула
       const missingCodes: string[] = [];
       for (const code of requiredCodes) {
         if (!availableByCode[code] || availableByCode[code] === 0) {
@@ -263,8 +265,8 @@ export default function CashPage() {
       setSelectedUnit(null);
       setSearchTerm('');
       setSelectedScenario(null);
-      fetchCashDay();
-      if (cashDay) fetchEvents(cashDay.id);
+      await fetchCashDay();
+      if (cashDay) await fetchEvents(cashDay.id);
     } else {
       const error = await collectRes.json();
       alert(error.error);
@@ -294,8 +296,8 @@ export default function CashPage() {
       alert('Операция добавлена');
       setSimpleAmount('');
       setSimpleDescription('');
-      fetchCashDay();
-      if (cashDay) fetchEvents(cashDay.id);
+      await fetchCashDay();
+      if (cashDay) await fetchEvents(cashDay.id);
     } else {
       const error = await res.json();
       alert(error.error);
@@ -316,29 +318,35 @@ export default function CashPage() {
 
   return (
     <div className="p-4">
-      <CashHeader cashDay={cashDay} onOpenCashDay={handleOpenCashDay} />
+      <CashHeader 
+        cashDay={cashDay} 
+        onOpenCashDay={handleOpenCashDay}
+        onRefresh={handleRefreshCashDay}
+      />
       
       {!cashDay ? (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
-          <p className="mb-2">Нет открытой кассовой смены</p>
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
+          <p className="mb-2 text-sm">Нет открытой кассовой смены</p>
           <button
             onClick={handleOpenCashDay}
-            className="bg-green-600 text-white px-4 py-1 rounded text-sm"
+            className="bg-green-600 text-white px-3 py-1 rounded text-xs"
           >
             Открыть смену
           </button>
         </div>
       ) : (
-        <div className="flex gap-6">
-          <CategoryTree selectedUnit={selectedUnit} onSelectUnit={handleSelectUnit} />
+        <div className="flex gap-4">
+          <div className="w-72 flex-shrink-0">
+            <CategoryTree selectedUnit={selectedUnit} onSelectUnit={handleSelectUnit} />
+          </div>
           
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <OperationTabs operationType={operationType} setOperationType={setOperationType} />
             
             {/* Поиск */}
-            <div className="bg-white rounded-lg shadow p-4 mb-6">
+            <div className="bg-white rounded-lg shadow p-2 mb-3">
               <div className="relative">
-                <label className="block text-sm font-medium mb-1">🔍 Быстрый поиск</label>
+                <label className="block text-xs font-medium mb-0.5">🔍 Быстрый поиск</label>
                 <input
                   type="text"
                   value={searchTerm}
@@ -349,7 +357,7 @@ export default function CashPage() {
                   }}
                   onFocus={() => setShowDropdown(true)}
                   placeholder="Введите серийный номер, название или артикул..."
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  className="w-full border rounded px-2 py-1 text-xs"
                   autoComplete="off"
                 />
                 {showDropdown && searchTerm && searchResults.length > 0 && (
@@ -358,7 +366,7 @@ export default function CashPage() {
                       <div
                         key={unit.id}
                         onClick={() => handleSelectUnit(unit)}
-                        className="p-2 hover:bg-gray-100 cursor-pointer border-b text-sm"
+                        className="p-1.5 hover:bg-gray-100 cursor-pointer border-b text-xs"
                       >
                         <div className="font-medium">{unit.product.name}</div>
                         <div className="text-gray-500 text-xs">
@@ -370,7 +378,7 @@ export default function CashPage() {
                 )}
               </div>
               {selectedUnit && (
-                <div className="mt-3 p-2 bg-blue-50 rounded text-sm flex justify-between items-center">
+                <div className="mt-2 p-1.5 bg-blue-50 rounded text-xs flex justify-between items-center">
                   <span>✅ {selectedUnit.product.name} ({selectedUnit.uniqueSerialNumber})</span>
                   <button onClick={() => { setSelectedUnit(null); setSearchTerm(''); }} className="text-red-500 text-xs">✖</button>
                 </div>

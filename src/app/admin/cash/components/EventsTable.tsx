@@ -2,13 +2,6 @@
 
 'use client';
 
-interface CashDay {
-  id: number;
-  date: string;
-  isClosed: boolean;
-  total: number;
-}
-
 interface CashEvent {
   id: number;
   type: string;
@@ -48,37 +41,37 @@ export default function EventsTable({ events, cashDay }: EventsTableProps) {
 
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div className="p-2 bg-gray-50 border-b text-sm font-medium">
+      <div className="p-1.5 bg-gray-50 border-b text-xs font-medium">
         📋 Операции за смену
       </div>
-      <div className="max-h-80 overflow-y-auto">
-        <table className="w-full text-sm">
+      <div className="max-h-64 overflow-y-auto">
+        <table className="w-full text-xs">
           <thead className="bg-gray-50 sticky top-0">
             <tr>
-              <th className="px-3 py-1 text-left">Время</th>
-              <th className="px-3 py-1 text-left">Тип</th>
-              <th className="px-3 py-1 text-left">Товар</th>
-              <th className="px-3 py-1 text-left">Сумма</th>
+              <th className="px-2 py-1 text-left">Время</th>
+              <th className="px-2 py-1 text-left">Тип</th>
+              <th className="px-2 py-1 text-left">Товар</th>
+              <th className="px-2 py-1 text-left">Сумма</th>
             </tr>
           </thead>
           <tbody>
             {events.map((event) => (
               <tr key={event.id} className="border-t">
-                <td className="px-3 py-1 text-xs">{new Date(event.createdAt).toLocaleTimeString()}</td>
-                <td className="px-3 py-1">
+                <td className="px-2 py-1 text-xs">{new Date(event.createdAt).toLocaleTimeString()}</td>
+                <td className="px-2 py-1">
                   <span className={getTypeColor(event.type)}>{getTypeLabel(event.type)}</span>
                 </td>
-                <td className="px-3 py-1 text-xs truncate max-w-[200px]">
+                <td className="px-2 py-1 text-xs truncate max-w-[150px]">
                   {event.items?.[0]?.productUnit?.product?.name || event.description || '—'}
                 </td>
-                <td className={`px-3 py-1 font-medium ${event.type === 'SALE' ? 'text-green-600' : event.type === 'RETURN' ? 'text-red-600' : ''}`}>
+                <td className={`px-2 py-1 font-medium ${event.type === 'SALE' ? 'text-green-600' : event.type === 'RETURN' ? 'text-red-600' : ''}`}>
                   {event.type === 'SALE' ? '+' : event.type === 'RETURN' ? '-' : ''}{event.totalAmount.toLocaleString()} ₽
                 </td>
               </tr>
             ))}
             {events.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-3 py-4 text-center text-gray-500 text-sm">
+                <td colSpan={4} className="px-2 py-2 text-center text-gray-500 text-xs">
                   Нет операций
                 </td>
               </tr>

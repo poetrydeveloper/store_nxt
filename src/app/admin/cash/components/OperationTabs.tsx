@@ -16,12 +16,12 @@ export default function OperationTabs({ operationType, setOperationType }: Opera
   ] as const;
 
   return (
-    <div className="flex border-b mb-4">
+    <div className="flex border-b mb-3">
       {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => setOperationType(tab.id)}
-          className={`flex-1 py-2 text-center transition-colors ${
+          className={`flex-1 py-1.5 text-center transition-colors text-xs ${
             operationType === tab.id
               ? 'border-b-2 border-blue-600 text-blue-600 font-medium'
               : 'text-gray-500 hover:text-gray-700'

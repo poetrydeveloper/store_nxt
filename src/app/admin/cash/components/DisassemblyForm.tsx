@@ -46,10 +46,6 @@ export default function DisassemblyForm({
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    console.log('DisassemblyForm received selectedUnit:', selectedUnit);
-  }, [selectedUnit]);
-
   const fetchDisassembledUnits = async () => {
     const res = await fetch('/api/product-units');
     const data = await res.json();
@@ -58,7 +54,6 @@ export default function DisassemblyForm({
         unit.physicalStatus === 'IN_DISASSEMBLED' && unit.disassemblyStatus === 'DISASSEMBLED'
       );
       setDisassembledUnits(disassembled);
-      console.log('Разобранные юниты:', disassembled.length);
     }
     setLoading(false);
   };
@@ -142,21 +137,21 @@ export default function DisassemblyForm({
       return (
         <div key={category.id}>
           <div
-            className="flex items-center gap-1 py-1 px-2 rounded cursor-pointer hover:bg-gray-100"
-            style={{ paddingLeft: `${8 + level * 20}px` }}
+            className="flex items-center gap-0.5 py-0.5 px-1.5 rounded cursor-pointer hover:bg-gray-100 text-xs"
+            style={{ paddingLeft: `${6 + level * 16}px` }}
           >
             {hasChildren && (
               <button
                 type="button"
                 onClick={(e) => toggleNode(category.id, e)}
-                className="w-5 h-5 flex items-center justify-center text-gray-500 hover:text-gray-700 flex-shrink-0"
+                className="w-4 h-4 flex items-center justify-center text-gray-500 hover:text-gray-700 flex-shrink-0 text-xs"
               >
                 {isExpanded ? '▼' : '▶'}
               </button>
             )}
-            {!hasChildren && <span className="w-5 flex-shrink-0" />}
-            <span className="text-gray-500 flex-shrink-0">📁</span>
-            <span className="text-sm truncate">{category.name}</span>
+            {!hasChildren && <span className="w-4 flex-shrink-0" />}
+            <span className="text-gray-500 flex-shrink-0 text-xs">📁</span>
+            <span className="text-xs truncate">{category.name}</span>
             <span className="text-xs text-gray-400 ml-1 flex-shrink-0">({totalCount})</span>
           </div>
           
@@ -167,7 +162,7 @@ export default function DisassemblyForm({
           )}
           
           {isExpanded && categoryUnits.length > 0 && (
-            <div style={{ paddingLeft: `${8 + level * 20 + 24}px` }}>
+            <div style={{ paddingLeft: `${6 + level * 16 + 20}px` }}>
               {categoryUnits.map((unit) => (
                 <div
                   key={unit.id}
@@ -176,13 +171,13 @@ export default function DisassemblyForm({
                       onSelectDisassembledUnit(unit);
                     }
                   }}
-                  className={`flex items-center gap-1 py-1 px-2 rounded cursor-pointer hover:bg-gray-100 text-sm ${
+                  className={`flex items-center gap-0.5 py-0.5 px-1.5 rounded cursor-pointer hover:bg-gray-100 text-xs ${
                     selectedUnit?.id === unit.id ? 'bg-blue-100 border-l-4 border-blue-500' : ''
                   }`}
                 >
-                  <span className="text-gray-400 flex-shrink-0">🔧</span>
+                  <span className="text-gray-400 flex-shrink-0 text-xs">🔧</span>
                   <div className="flex flex-col truncate">
-                    <span className="truncate">{unit.product.name}</span>
+                    <span className="text-xs truncate">{unit.product.name}</span>
                     <span className="text-xs text-gray-400 font-mono">{unit.product.code}</span>
                   </div>
                   <span className="text-xs text-purple-600 ml-auto flex-shrink-0">
@@ -199,30 +194,27 @@ export default function DisassemblyForm({
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="text-center text-gray-500 text-sm py-4">Загрузка...</div>
+      <div className="bg-white rounded-lg shadow p-2 mb-3">
+        <div className="text-center text-gray-500 text-xs py-2">Загрузка...</div>
       </div>
     );
   }
 
-  // Проверяем, можно ли разобрать товар
   const canDisassemble = selectedUnit && 
     selectedUnit.physicalStatus === 'IN_STORE' && 
     (selectedUnit.disassemblyStatus === 'MONOLITH' || selectedUnit.disassemblyStatus === 'RESTORED') &&
     selectedScenario;
 
-  // Проверяем, можно ли собрать товар
   const canCollect = selectedUnit && 
     selectedUnit.physicalStatus === 'IN_DISASSEMBLED' && 
     selectedUnit.disassemblyStatus === 'DISASSEMBLED';
 
   return (
-    <div className="space-y-4">
-      {/* Форма для выбранного товара */}
+    <div className="space-y-3">
       {selectedUnit ? (
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="space-y-3">
-            <div className="p-2 bg-blue-50 rounded text-sm">
+        <div className="bg-white rounded-lg shadow p-2 mb-3">
+          <div className="space-y-2">
+            <div className="p-1.5 bg-blue-50 rounded text-xs">
               <div className="font-medium">📦 Выбранный товар:</div>
               <div>{selectedUnit.product.name}</div>
               <div className="text-xs text-gray-500">Серийный: {selectedUnit.uniqueSerialNumber}</div>
@@ -232,13 +224,10 @@ export default function DisassemblyForm({
 
             {selectedScenario ? (
               <>
-                <div className="p-2 bg-green-50 rounded text-sm">
+                <div className="p-1.5 bg-green-50 rounded text-xs">
                   <div className="font-medium">📋 Сценарий: {selectedScenario.name}</div>
-                  <div className="text-xs text-gray-600 mt-1">
-                    Требуются частицы:
-                  </div>
-                  <div className="text-xs text-gray-500 mt-0.5">
-                    {(selectedScenario.childProductCodes as string[]).join(', ')}
+                  <div className="text-xs text-gray-600 mt-0.5">
+                    Требуются частицы: {(selectedScenario.childProductCodes as string[]).join(', ')}
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -246,7 +235,7 @@ export default function DisassemblyForm({
                     <button
                       type="button"
                       onClick={onDisassemble}
-                      className="flex-1 bg-purple-600 text-white py-2 rounded text-sm hover:bg-purple-700"
+                      className="flex-1 bg-purple-600 text-white py-1 rounded text-xs hover:bg-purple-700"
                     >
                       🔧 Разобрать
                     </button>
@@ -255,27 +244,27 @@ export default function DisassemblyForm({
                     <button
                       type="button"
                       onClick={onCollect}
-                      className="flex-1 bg-teal-600 text-white py-2 rounded text-sm hover:bg-teal-700"
+                      className="flex-1 bg-teal-600 text-white py-1 rounded text-xs hover:bg-teal-700"
                     >
                       🔨 Собрать
                     </button>
                   )}
                   <Link
                     href="/admin/disassembly"
-                    className="flex-1 bg-blue-600 text-white py-2 rounded text-sm text-center hover:bg-blue-700"
+                    className="flex-1 bg-blue-600 text-white py-1 rounded text-xs text-center hover:bg-blue-700"
                   >
-                    📝 Редактировать сценарий
+                    📝 Редактировать
                   </Link>
                 </div>
               </>
             ) : (
               <div className="text-center">
-                <p className="text-amber-600 text-sm mb-3">
-                  Нет сценария разборки для товара "{selectedUnit.product.name}"
+                <p className="text-amber-600 text-xs mb-2">
+                  Нет сценария для "{selectedUnit.product.name}"
                 </p>
                 <button
                   onClick={onCreateScenario}
-                  className="w-full bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700"
+                  className="w-full bg-blue-600 text-white py-1 rounded text-xs hover:bg-blue-700"
                 >
                   + Создать сценарий
                 </button>
@@ -284,17 +273,16 @@ export default function DisassemblyForm({
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-center text-gray-500 text-sm py-4">
+        <div className="bg-white rounded-lg shadow p-2 mb-3">
+          <p className="text-center text-gray-500 text-xs py-2">
             Выберите товар из дерева слева
           </p>
         </div>
       )}
 
-      {/* Дерево разобранных наборов */}
       {disassembledUnits.length > 0 && (
-        <div className="bg-white rounded-lg shadow p-3">
-          <div className="text-sm font-medium text-gray-700 mb-2 pb-2 border-b">
+        <div className="bg-white rounded-lg shadow p-2">
+          <div className="text-xs font-medium text-gray-700 mb-1 pb-1 border-b">
             🔧 Разобранные наборы (для сборки)
           </div>
           {renderTree(categories)}

@@ -25,14 +25,14 @@ export default function SimpleForm({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-4 mb-6">
-      <form onSubmit={handleSubmit} className="space-y-3">
+    <div className="bg-white rounded-lg shadow p-2 mb-3">
+      <form onSubmit={handleSubmit} className="space-y-2">
         <input
           type="number"
           placeholder="Сумма"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          className="w-full border rounded px-3 py-2 text-sm"
+          className="w-full border rounded px-2 py-1 text-xs"
           step="0.01"
           required
         />
@@ -41,9 +41,9 @@ export default function SimpleForm({
           placeholder="Описание"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          className="w-full border rounded px-3 py-2 text-sm"
+          className="w-full border rounded px-2 py-1 text-xs"
         />
-        <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded text-sm hover:bg-blue-700">
+        <button type="submit" className="w-full bg-blue-600 text-white py-1.5 rounded text-xs hover:bg-blue-700">
           {type === 'expense' ? 'Добавить расход' : 'Добавить доход'}
         </button>
       </form>

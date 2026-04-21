@@ -158,21 +158,21 @@ export default function CategoryTree({ selectedUnit, onSelectUnit }: CategoryTre
       return (
         <div key={category.id}>
           <div
-            className="flex items-center gap-1 py-1 px-2 rounded cursor-pointer hover:bg-gray-100"
-            style={{ paddingLeft: `${8 + level * 20}px` }}
+            className="flex items-center gap-0.5 py-0.5 px-1.5 rounded cursor-pointer hover:bg-gray-100 text-xs"
+            style={{ paddingLeft: `${6 + level * 16}px` }}
           >
             {hasChildren && (
               <button
                 type="button"
                 onClick={(e) => toggleNode(category.id, e)}
-                className="w-5 h-5 flex items-center justify-center text-gray-500 hover:text-gray-700 flex-shrink-0"
+                className="w-4 h-4 flex items-center justify-center text-gray-500 hover:text-gray-700 flex-shrink-0 text-xs"
               >
                 {isExpanded ? '▼' : '▶'}
               </button>
             )}
-            {!hasChildren && <span className="w-5 flex-shrink-0" />}
-            <span className="text-gray-500 flex-shrink-0">📁</span>
-            <span className="text-sm truncate">{category.name}</span>
+            {!hasChildren && <span className="w-4 flex-shrink-0" />}
+            <span className="text-gray-500 flex-shrink-0 text-xs">📁</span>
+            <span className="text-xs truncate">{category.name}</span>
             <span className="text-xs text-gray-400 ml-1 flex-shrink-0">({totalCount})</span>
           </div>
           
@@ -183,7 +183,7 @@ export default function CategoryTree({ selectedUnit, onSelectUnit }: CategoryTre
           )}
           
           {isExpanded && groupedUnits.size > 0 && (
-            <div style={{ paddingLeft: `${8 + level * 20 + 24}px` }}>
+            <div style={{ paddingLeft: `${6 + level * 16 + 20}px` }}>
               {Array.from(groupedUnits.entries()).map(([productId, productUnits]) => {
                 const firstUnit = productUnits[0];
                 const isProductExpanded = expandedProducts.has(productId);
@@ -194,15 +194,15 @@ export default function CategoryTree({ selectedUnit, onSelectUnit }: CategoryTre
                 return (
                   <div key={productId}>
                     <div
-                      className="flex items-center gap-1 py-1 px-2 rounded cursor-pointer hover:bg-gray-100 text-sm"
+                      className="flex items-center gap-0.5 py-0.5 px-1.5 rounded cursor-pointer hover:bg-gray-100 text-xs"
                       onClick={(e) => toggleProductGroup(productId, e)}
                     >
-                      <span className="w-5 flex-shrink-0 text-gray-400">
+                      <span className="w-4 flex-shrink-0 text-gray-400 text-xs">
                         {isProductExpanded ? '▼' : '▶'}
                       </span>
-                      <span className="text-gray-400 flex-shrink-0">📦</span>
+                      <span className="text-gray-400 flex-shrink-0 text-xs">📦</span>
                       <div className="flex flex-col truncate">
-                        <span className="truncate">{firstUnit.product.name}</span>
+                        <span className="text-xs truncate">{firstUnit.product.name}</span>
                         <span className="text-xs text-gray-400 font-mono">
                           {firstUnit.product.code}
                         </span>
@@ -218,16 +218,16 @@ export default function CategoryTree({ selectedUnit, onSelectUnit }: CategoryTre
                     </div>
                     
                     {isProductExpanded && (
-                      <div style={{ paddingLeft: '24px' }}>
+                      <div style={{ paddingLeft: '20px' }}>
                         {productUnits.map((unit) => (
                           <div
                             key={unit.id}
                             onClick={() => onSelectUnit(unit)}
-                            className={`flex items-center gap-1 py-1 px-2 rounded cursor-pointer hover:bg-gray-100 text-xs ${
+                            className={`flex items-center gap-0.5 py-0.5 px-1.5 rounded cursor-pointer hover:bg-gray-100 text-xs ${
                               selectedUnit?.id === unit.id ? 'bg-blue-100 border-l-4 border-blue-500' : ''
                             }`}
                           >
-                            <span className="text-gray-400 flex-shrink-0">🔧</span>
+                            <span className="text-gray-400 flex-shrink-0 text-xs">🔧</span>
                             <span className="font-mono text-xs">{unit.uniqueSerialNumber}</span>
                             <span className={`text-xs ml-auto flex-shrink-0 px-1 rounded ${
                               unit.physicalStatus === 'IN_STORE' ? 'bg-green-100 text-green-800' : 
@@ -252,15 +252,15 @@ export default function CategoryTree({ selectedUnit, onSelectUnit }: CategoryTre
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow p-3 h-[calc(100vh-200px)] overflow-y-auto">
-        <div className="text-center text-gray-500 text-sm py-4">Загрузка...</div>
+      <div className="bg-white rounded-lg shadow p-2 h-[calc(100vh-180px)] overflow-y-auto">
+        <div className="text-center text-gray-500 text-xs py-2">Загрузка...</div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-3 h-[calc(100vh-200px)] overflow-y-auto">
-      <div className="text-sm font-medium text-gray-700 mb-2 pb-2 border-b flex justify-between items-center">
+    <div className="bg-white rounded-lg shadow p-2 h-[calc(100vh-180px)] overflow-y-auto">
+      <div className="text-xs font-medium text-gray-700 mb-1 pb-1 border-b flex justify-between items-center">
         <span>📂 Дерево товаров</span>
         <button
           onClick={() => fetchUnits()}
@@ -272,12 +272,12 @@ export default function CategoryTree({ selectedUnit, onSelectUnit }: CategoryTre
       </div>
       {renderTree(categories)}
       {categories.length === 0 && (
-        <div className="text-center text-gray-500 text-sm py-4">
+        <div className="text-center text-gray-500 text-xs py-2">
           Нет категорий
         </div>
       )}
       {categories.length > 0 && units.length === 0 && (
-        <div className="text-center text-gray-500 text-sm py-4">
+        <div className="text-center text-gray-500 text-xs py-2">
           Нет доступных товаров
         </div>
       )}

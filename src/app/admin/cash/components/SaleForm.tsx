@@ -34,8 +34,8 @@ export default function SaleForm({
 
   if (!selectedUnit) {
     return (
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <p className="text-center text-gray-500 text-sm py-4">
+      <div className="bg-white rounded-lg shadow p-2 mb-3">
+        <p className="text-center text-gray-500 text-xs py-2">
           Выберите товар из дерева слева или через поиск
         </p>
       </div>
@@ -43,29 +43,29 @@ export default function SaleForm({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-4 mb-6">
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
+    <div className="bg-white rounded-lg shadow p-2 mb-3">
+      <form onSubmit={handleSubmit} className="space-y-2">
+        <div className="grid grid-cols-2 gap-2">
           <input
             type="number"
             placeholder="Цена продажи"
             value={salePrice}
             onChange={(e) => setSalePrice(e.target.value)}
-            className="border rounded px-3 py-2 text-sm"
+            className="border rounded px-2 py-1 text-xs"
             step="0.01"
             required
           />
           <select
             value={paymentMethod}
             onChange={(e) => setPaymentMethod(e.target.value)}
-            className="border rounded px-3 py-2 text-sm"
+            className="border rounded px-2 py-1 text-xs"
           >
             <option value="CASH">Наличные</option>
             <option value="CARD">Карта</option>
             <option value="TRANSFER">Перевод</option>
           </select>
         </div>
-        <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded text-sm hover:bg-blue-700">
+        <button type="submit" className="w-full bg-blue-600 text-white py-1.5 rounded text-xs hover:bg-blue-700">
           Продать
         </button>
       </form>
