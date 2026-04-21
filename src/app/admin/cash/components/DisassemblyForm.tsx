@@ -22,6 +22,12 @@ interface DisassemblyScenario {
   isActive: boolean;
 }
 
+interface Product {
+  id: number;
+  code: string;
+  name: string;
+}
+
 interface DisassemblyFormProps {
   selectedUnit: ProductUnit | null;
   selectedScenario: DisassemblyScenario | null;
@@ -30,6 +36,7 @@ interface DisassemblyFormProps {
   onCreateScenario: () => void;
   onEditScenario?: () => void;
   onSelectDisassembledUnit?: (unit: ProductUnit) => void;
+  onSelectProductForScenario?: (productCode: string) => void;
 }
 
 export default function DisassemblyForm({
@@ -40,16 +47,20 @@ export default function DisassemblyForm({
   onCreateScenario,
   onEditScenario,
   onSelectDisassembledUnit,
+  onSelectProductForScenario,
 }: DisassemblyFormProps) {
   const [disassembledUnits, setDisassembledUnits] = useState<ProductUnit[]>([]);
   const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set());
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [productsWithScenarios, setProductsWithScenarios] = useState<Product[]>([]);
+  const [allUnits, setAllUnits] = useState<ProductUnit[]>([]);
 
   const fetchDisassembledUnits = async () => {
     const res = await fetch('/api/product-units');
     const data = await res.json();
     if (data.success) {
+      setAllUnits(data.data);
       const disassembled = data.data.filter((unit: ProductUnit) => 
         unit.physicalStatus === 'IN_DISASSEMBLED' && unit.disassemblyStatus === 'DISASSEMBLED'
       );
@@ -66,6 +77,28 @@ export default function DisassemblyForm({
       setCategories(tree);
       const allIds = getAllCategoryIds(tree);
       setExpandedNodes(allIds);
+    }
+  };
+
+  const fetchProductsWithScenarios = async () => {
+    const res = await fetch('/api/disassembly-scenarios');
+    const data = await res.json();
+    if (data.success) {
+      const products: Product[] = [];
+      for (const scenario of data.data) {
+        if (scenario.isActive) {
+          const productRes = await fetch(`/api/products?code=${scenario.parentProductCode}`);
+          const productData = await productRes.json();
+          if (productData.success && productData.data.length > 0) {
+            products.push({
+              id: productData.data[0].id,
+              code: productData.data[0].code,
+              name: productData.data[0].name,
+            });
+          }
+        }
+      }
+      setProductsWithScenarios(products);
     }
   };
 
@@ -111,9 +144,14 @@ export default function DisassemblyForm({
     return disassembledUnits.filter(unit => unit.product.categoryId === categoryId);
   };
 
+  const findUnitByProductCode = (productCode: string): ProductUnit | undefined => {
+    return allUnits.find(unit => unit.product.code === productCode);
+  };
+
   useEffect(() => {
     fetchDisassembledUnits();
     fetchCategories();
+    fetchProductsWithScenarios();
   }, []);
 
   const toggleNode = (id: number, e: React.MouseEvent) => {
@@ -211,6 +249,7 @@ export default function DisassemblyForm({
 
   return (
     <div className="space-y-3">
+      {/* Форма для выбранного товара */}
       {selectedUnit ? (
         <div className="bg-white rounded-lg shadow p-2 mb-3">
           <div className="space-y-2">
@@ -280,6 +319,60 @@ export default function DisassemblyForm({
         </div>
       )}
 
+      {/* Список товаров со сценариями */}
+      {productsWithScenarios.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-2">
+          <div className="text-xs font-medium text-gray-700 mb-1 pb-1 border-b">
+            📋 Товары со сценариями разборки
+          </div>
+          <div className="space-y-1 max-h-40 overflow-y-auto">
+            {productsWithScenarios.map((product) => {
+              const existingUnit = findUnitByProductCode(product.code);
+              const statusText = existingUnit 
+                ? `(${existingUnit.physicalStatus} / ${existingUnit.disassemblyStatus})`
+                : '(нет на складе)';
+              const canAct = existingUnit && 
+                existingUnit.physicalStatus === 'IN_STORE' && 
+                existingUnit.disassemblyStatus === 'MONOLITH';
+              
+              return (
+                <div
+                  key={product.id}
+                  className="flex items-center justify-between p-1.5 rounded hover:bg-gray-50 text-xs"
+                >
+                  <div className="truncate">
+                    <span className="font-medium">{product.name}</span>
+                    <span className="text-gray-400 ml-1">{statusText}</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (existingUnit && onSelectDisassembledUnit) {
+                        onSelectDisassembledUnit(existingUnit);
+                      } else if (onSelectProductForScenario) {
+                        onSelectProductForScenario(product.code);
+                      }
+                    }}
+                    disabled={!existingUnit}
+                    className={`px-2 py-0.5 rounded text-xs ${
+                      existingUnit && canAct
+                        ? 'bg-purple-600 text-white hover:bg-purple-700'
+                        : existingUnit && existingUnit.physicalStatus === 'IN_DISASSEMBLED'
+                        ? 'bg-teal-600 text-white hover:bg-teal-700'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {existingUnit && canAct ? '🔧 Разобрать' : 
+                     existingUnit && existingUnit.physicalStatus === 'IN_DISASSEMBLED' ? '🔨 Собрать' : 
+                     'Нет на складе'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Дерево разобранных наборов */}
       {disassembledUnits.length > 0 && (
         <div className="bg-white rounded-lg shadow p-2">
           <div className="text-xs font-medium text-gray-700 mb-1 pb-1 border-b">
