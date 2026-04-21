@@ -16,6 +16,13 @@ async function findProductByCode(code: string) {
   return product;
 }
 
+// Генерация уникального серийного номера для частицы
+function generateUniqueSerialNumber(parentSerial: string, partIndex: number): string {
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 8);
+  return `${parentSerial}-PART-${partIndex + 1}-${timestamp}-${random}`;
+}
+
 // POST /api/inventory/disassemble
 export async function POST(request: NextRequest) {
   try {
@@ -75,13 +82,16 @@ export async function POST(request: NextRequest) {
         }, { status: 400 });
       }
       
+      // Генерируем уникальный серийный номер
+      const uniqueSerial = generateUniqueSerialNumber(parentUnit.uniqueSerialNumber, i);
+      
       // Создаём дочерний ProductUnit
       const childUnit = await prisma.productUnit.create({
         data: {
-          uniqueSerialNumber: `${parentUnit.uniqueSerialNumber}-PART-${i + 1}`,
+          uniqueSerialNumber: uniqueSerial,
           productId: childProduct.id,
           status: 'RECEIVED',
-          physicalStatus: 'IN_STORE',  // ← ИСПРАВЛЕНО: частица сразу в магазине
+          physicalStatus: 'IN_STORE',
           disassemblyStatus: 'PARTIAL',
           isReserved: false,
           isReturned: false,

@@ -63,16 +63,15 @@ export async function POST(request: NextRequest) {
     let parentUnit;
     
     if (parentSerialNumber) {
-      // Если указан серийный номер - ищем конкретный
       parentUnit = await prisma.productUnit.findFirst({
         where: {
           uniqueSerialNumber: parentSerialNumber,
           physicalStatus: 'IN_DISASSEMBLED',
           disassemblyStatus: 'DISASSEMBLED',
         },
+        include: { product: true },  // ← добавили include
       });
     } else {
-      // Иначе находим самый старый разобранный
       parentUnit = await prisma.productUnit.findFirst({
         where: {
           product: { code: parentProductCode },
@@ -80,6 +79,7 @@ export async function POST(request: NextRequest) {
           disassemblyStatus: 'DISASSEMBLED',
         },
         orderBy: { createdAt: 'asc' },
+        include: { product: true },  // ← добавили include
       });
     }
 
@@ -108,16 +108,16 @@ export async function POST(request: NextRequest) {
       where: { id: parentUnit.id },
       data: {
         physicalStatus: 'IN_STORE',
-        disassemblyStatus: 'RESTORED',
+        disassemblyStatus: 'MONOLITH',
         isReserved: false,
       },
     });
 
-    // 6. Логируем
+    // 6. Логируем - используем parentProductCode вместо parentUnit.product.code
     await prisma.productUnitLog.create({
       data: {
         type: 'COLLECT',
-        message: `Собран набор ${parentUnit.product.code} из ${collectedChildren.length} частей`,
+        message: `Собран набор ${parentProductCode} из ${collectedChildren.length} частей`,
         meta: { 
           parentUnitId: parentUnit.id, 
           childUnitIds: collectedChildren.map(c => c.id),
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Набор ${parentUnit.product.code} собран из ${collectedChildren.length} частей`,
+      message: `Набор ${parentProductCode} собран из ${collectedChildren.length} частей`,
       data: { parent: restoredParent, children: collectedChildren },
     });
   } catch (error: any) {
