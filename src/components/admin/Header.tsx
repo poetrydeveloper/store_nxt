@@ -17,6 +17,7 @@ const menuItems = [
   { title: 'Покупатели', href: '/admin/customers' },
   { title: 'Касса', href: '/admin/cash' },
   { title: 'Кассовые дни', href: '/admin/cash-days' },
+  { title: 'Аналитика', href: '/admin/analytics' },  // ← ДОБАВИТЬ ЭТУ СТРОКУ
 ];
 
 export default function Header() {
@@ -34,7 +35,6 @@ export default function Header() {
 
   useEffect(() => {
     fetchOpenCashDay();
-    // Обновляем каждые 10 секунд
     const interval = setInterval(fetchOpenCashDay, 10000);
     return () => clearInterval(interval);
   }, []);
