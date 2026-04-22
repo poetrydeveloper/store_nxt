@@ -50,11 +50,31 @@ export async function POST() {
       }, { status: 201 });
     }
 
-    // Если смена за сегодня есть, но закрыта - открываем её снова
+    // Если смена за сегодня есть, но закрыта - открываем её снова и пересчитываем итог
     if (todayCashDay.isClosed) {
+      // Пересчитываем итог из существующих событий
+      const events = await prisma.cashEvent.findMany({
+        where: { cashDayId: todayCashDay.id },
+      });
+      
+      let total = 0;
+      for (const event of events) {
+        const amount = typeof event.totalAmount === 'number' 
+          ? event.totalAmount 
+          : parseFloat(event.totalAmount);
+        
+        if (!isNaN(amount)) {
+          if (event.type === 'SALE' || event.type === 'INCOME') {
+            total += amount;
+          } else if (event.type === 'RETURN' || event.type === 'EXPENSE') {
+            total -= amount;
+          }
+        }
+      }
+      
       const reopened = await prisma.cashDay.update({
         where: { id: todayCashDay.id },
-        data: { isClosed: false },
+        data: { isClosed: false, total },
       });
       return NextResponse.json({ 
         success: true, 
@@ -92,19 +112,25 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Нет открытой смены' }, { status: 404 });
     }
 
-    // Пересчитываем итог
+    // Пересчитываем итог (числа, а не строки)
     const events = await prisma.cashEvent.findMany({
       where: { cashDayId: openDay.id },
     });
 
-    const total = events.reduce((sum, event) => {
-      if (event.type === 'SALE' || event.type === 'INCOME') {
-        return sum + event.totalAmount;
-      } else if (event.type === 'RETURN' || event.type === 'EXPENSE') {
-        return sum - event.totalAmount;
+    let total = 0;
+    for (const event of events) {
+      const amount = typeof event.totalAmount === 'number' 
+        ? event.totalAmount 
+        : parseFloat(event.totalAmount);
+      
+      if (!isNaN(amount)) {
+        if (event.type === 'SALE' || event.type === 'INCOME') {
+          total += amount;
+        } else if (event.type === 'RETURN' || event.type === 'EXPENSE') {
+          total -= amount;
+        }
       }
-      return sum;
-    }, 0);
+    }
 
     const closedDay = await prisma.cashDay.update({
       where: { id: openDay.id },
