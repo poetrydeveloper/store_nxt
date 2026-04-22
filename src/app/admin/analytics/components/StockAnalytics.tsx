@@ -3,7 +3,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 interface Product {
@@ -155,19 +154,19 @@ export default function StockAnalytics() {
       const hasChildren = category.children && category.children.length > 0;
 
       return (
-        <div key={category.id} className="mb-2">
+        <div key={category.id} className="mb-1">
           <div 
-            className="flex items-center gap-1 py-1 px-2 rounded cursor-pointer hover:bg-gray-100 text-sm font-medium bg-gray-50"
-            style={{ marginLeft: `${level * 20}px` }}
+            className="flex items-center gap-1 py-0.5 px-2 rounded cursor-pointer hover:bg-gray-100 text-xs font-medium bg-gray-50"
+            style={{ marginLeft: `${level * 16}px` }}
           >
-            <span className="text-gray-500">📁</span>
-            <span>{category.name}</span>
+            <span className="text-gray-500 text-xs">📁</span>
+            <span className="text-xs">{category.name}</span>
             <span className="text-xs text-gray-400 ml-1">
               ({categoryProducts.length})
             </span>
           </div>
           
-          <div className="ml-4">
+          <div className="ml-3">
             {categoryProducts.map(product => {
               const stock = getStockCount(product.id);
               const ordered = getOrderedCount(product.id);
@@ -180,88 +179,86 @@ export default function StockAnalytics() {
               return (
                 <div 
                   key={product.id}
-                  className={`border rounded-lg p-3 mb-2 ${bgColor} shadow-sm hover:shadow-md transition-shadow`}
-                  style={{ marginLeft: `${level * 20 + 20}px` }}
+                  className={`border rounded-sm py-1 px-2 mb-1 ${bgColor} text-xs`}
+                  style={{ marginLeft: `${level * 16 + 16}px` }}
                 >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="font-medium text-sm">{product.name}</div>
-                      <div className="text-xs text-gray-500 mt-0.5">
-                        Артикул: <span className="font-mono">{product.code}</span>
-                        {product.brand && ` | Бренд: ${product.brand.name}`}
+                  <div className="font-medium text-sm mb-0.5">{product.name}</div>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <span className="text-gray-500 text-xs">Артикул: <span className="font-mono">{product.code}</span></span>
+                    
+                    <div className="flex items-center gap-4 ml-auto">
+                      <div className="text-center">
+                        <div className={`font-bold text-base ${stock === 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {stock}
+                        </div>
+                        <div className="text-xs text-gray-400">остаток</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-bold text-base">{sold}</div>
+                        <div className="text-xs text-gray-400">продано</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-bold text-base">{ordered}</div>
+                        <div className="text-xs text-gray-400">заказано</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-bold text-base">{disassembled}</div>
+                        <div className="text-xs text-gray-400">разобрано</div>
+                      </div>
+                      <div className="text-center">
+                        <div className={`font-bold text-base ${turnover !== '-' && turnover > 60 ? 'text-red-600' : 'text-gray-800'}`}>
+                          {turnover}
+                        </div>
+                        <div className="text-xs text-gray-400">оборот, дн</div>
+                      </div>
+                      
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => {
+                            sessionStorage.setItem('quickSellProduct', JSON.stringify({
+                              id: product.id,
+                              code: product.code,
+                              name: product.name,
+                            }));
+                            router.push('/admin/cash');
+                          }}
+                          className="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700"
+                          title="Продать"
+                        >
+                          🛒
+                        </button>
+                        <button
+                          onClick={() => {
+                            sessionStorage.setItem('quickOrderProduct', JSON.stringify({
+                              id: product.id,
+                              code: product.code,
+                              name: product.name,
+                            }));
+                            router.push('/admin/orders');
+                          }}
+                          className="bg-yellow-600 text-white px-2 py-1 rounded text-xs hover:bg-yellow-700"
+                          title="Заказать"
+                        >
+                          📋
+                        </button>
+                        {hasScenario && (
+                          <button
+                            onClick={() => {
+                              sessionStorage.setItem('quickDisassembleProduct', JSON.stringify({
+                                id: product.id,
+                                code: product.code,
+                                name: product.name,
+                              }));
+                              router.push('/admin/cash');
+                            }}
+                            className="bg-purple-600 text-white px-2 py-1 rounded text-xs hover:bg-purple-700"
+                            title="Разобрать"
+                          >
+                            🔧
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className={`text-2xl font-bold ${stock === 0 ? 'text-red-600' : 'text-green-600'}`}>
-                        {stock}
-                      </div>
-                      <div className="text-xs text-gray-500">в наличии</div>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-4 gap-2 mt-3 text-xs">
-                    <div className="bg-gray-50 p-1.5 rounded text-center">
-                      <div className="text-gray-500">📈 Продано за {period} дн.</div>
-                      <div className="font-semibold text-base">{sold}</div>
-                    </div>
-                    <div className="bg-gray-50 p-1.5 rounded text-center">
-                      <div className="text-gray-500">🚚 Заказано</div>
-                      <div className="font-semibold text-base">{ordered}</div>
-                    </div>
-                    <div className="bg-gray-50 p-1.5 rounded text-center">
-                      <div className="text-gray-500">🔧 Разобрано</div>
-                      <div className="font-semibold text-base">{disassembled}</div>
-                    </div>
-                    <div className="bg-gray-50 p-1.5 rounded text-center">
-                      <div className="text-gray-500">📊 Оборот (дней)</div>
-                      <div className={`font-semibold text-base ${turnover !== '-' && turnover > 60 ? 'text-red-600' : 'text-green-600'}`}>
-                        {turnover}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-2 mt-3">
-                    <button
-                      onClick={() => {
-                        sessionStorage.setItem('quickSellProduct', JSON.stringify({
-                          id: product.id,
-                          code: product.code,
-                          name: product.name,
-                        }));
-                        router.push('/admin/cash');
-                      }}
-                      className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
-                    >
-                      🛒 Продать
-                    </button>
-                    <button
-                      onClick={() => {
-                        sessionStorage.setItem('quickOrderProduct', JSON.stringify({
-                          id: product.id,
-                          code: product.code,
-                          name: product.name,
-                        }));
-                        router.push('/admin/orders');
-                      }}
-                      className="text-xs bg-yellow-600 text-white px-3 py-1 rounded hover:bg-yellow-700"
-                    >
-                      📋 Заказать
-                    </button>
-                    {hasScenario && (
-                      <button
-                        onClick={() => {
-                          sessionStorage.setItem('quickDisassembleProduct', JSON.stringify({
-                            id: product.id,
-                            code: product.code,
-                            name: product.name,
-                          }));
-                          router.push('/admin/cash');
-                        }}
-                        className="text-xs bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700"
-                      >
-                        🔧 Разобрать
-                      </button>
-                    )}
                   </div>
                 </div>
               );
@@ -273,18 +270,18 @@ export default function StockAnalytics() {
     });
   };
 
-  if (loading) return <div className="p-4 text-center">Загрузка данных...</div>;
+  if (loading) return <div className="p-4 text-center text-sm">Загрузка данных...</div>;
 
   return (
-    <div className="p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">📊 Аналитика остатков</h1>
+    <div className="p-3">
+      <div className="flex justify-between items-center mb-3">
+        <h1 className="text-lg font-bold">📊 Аналитика остатков</h1>
         <div className="flex gap-2 items-center">
-          <span className="text-sm text-gray-500">Период анализа:</span>
+          <span className="text-xs text-gray-500">Период:</span>
           <select
             value={period}
             onChange={(e) => setPeriod(parseInt(e.target.value))}
-            className="border rounded px-2 py-1 text-sm"
+            className="border rounded px-2 py-1 text-xs"
           >
             {PERIOD_OPTIONS.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -292,36 +289,17 @@ export default function StockAnalytics() {
           </select>
           <button
             onClick={() => fetchData()}
-            className="text-sm bg-gray-200 text-gray-700 px-3 py-1 rounded hover:bg-gray-300"
+            className="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded hover:bg-gray-300"
           >
             🔄 Обновить
           </button>
         </div>
       </div>
       
-      <div className="text-sm text-gray-500 mb-4 flex gap-4">
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 bg-white border rounded"></div>
-          <span>Есть остатки</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 bg-yellow-100 border border-yellow-200 rounded"></div>
-          <span>Остаток &lt; 3 шт.</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 bg-red-50 border border-red-200 rounded"></div>
-          <span>Остаток 0</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 bg-gray-50 border rounded"></div>
-          <span>Оборот &gt; 60 дней</span>
-        </div>
-      </div>
-      
-      <div className="max-h-[calc(100vh-200px)] overflow-y-auto">
+      <div className="max-h-[calc(100vh-120px)] overflow-y-auto">
         {renderTree(categories)}
         {categories.length === 0 && (
-          <div className="text-center text-gray-500 py-8">
+          <div className="text-center text-gray-500 py-8 text-sm">
             Нет категорий. Создайте первую категорию.
           </div>
         )}
