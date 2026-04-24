@@ -24,6 +24,7 @@ enum PhysicalStatus {
   IN_STORE
   SOLD
   LOST
+  WRITE_OFF
   IN_DISASSEMBLED
   IN_COLLECTED
   ABSORBED
@@ -59,6 +60,7 @@ enum LogEventType {
   DISASSEMBLE
   COLLECT
   LOST
+  WRITE_OFF
   MANUAL_RECEIPT
   PRICE_UPDATE
   RESERVED
@@ -73,6 +75,12 @@ enum OrderStatus {
   SHIPPED
   COMPLETED
   BAD_DEBT
+}
+
+enum PendingStatus {
+  PENDING
+  RESOLVED
+  CANCELLED
 }
 
 // ========== ЧАСТЬ 1: КАРТОЧКА ТОВАРА ==========
@@ -120,6 +128,7 @@ model Product {
   brand         Brand?   @relation(fields: [brandId], references: [id])
   images        ProductImage[]
   units         ProductUnit[]
+  pendingSales  PendingSale[]
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -176,20 +185,15 @@ model ProductUnit {
   isReserved            Boolean              @default(false)
   createdAt             DateTime             @default(now())
   
-  // Логистические статусы
   status                StatusEnum           @default(CANDIDATE)
-  
-  // Физические статусы
   physicalStatus        PhysicalStatus       @default(IN_STORE)
   disassemblyStatus     UnitDisassemblyStatus @default(MONOLITH)
   
-  // Продажи и возвраты
   isReturned            Boolean              @default(false)
   returnedAt            DateTime?
   salePrice             Decimal?
   soldAt                DateTime?
   
-  // Внешние ключи
   productId             Int
   supplierId            Int?
   customerId            Int?
@@ -197,7 +201,6 @@ model ProductUnit {
   manualReceiptId       Int?                @unique
   parentProductUnitId   Int?
   
-  // Связи
   product               Product              @relation(fields: [productId], references: [id])
   supplier              Supplier?            @relation(fields: [supplierId], references: [id])
   customer              Customer?            @relation(fields: [customerId], references: [id])
@@ -262,7 +265,7 @@ model DisassemblyScenario {
   id                  Int      @id @default(autoincrement())
   name                String
   parentProductCode   String
-  childProductCodes   Json     // JSON массив артикулов частей
+  childProductCodes   Json
   partsCount          Int
   isActive            Boolean  @default(true)
   
@@ -281,6 +284,7 @@ model CashDay {
   total               Decimal  @default(0)
   
   events              CashEvent[]
+  pendingSales        PendingSale[]
   
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -358,6 +362,28 @@ model DebtTracking {
   
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
+}
+
+// ========== ОТЛОЖЕННЫЕ ПРОДАЖИ ==========
+
+model PendingSale {
+  id                 String        @id @default(cuid())
+  tempName           String
+  tempPrice          Decimal
+  tempQuantity       Int           @default(1)
+  tempCategoryName   String?
+  tempBrandName      String?
+  
+  cashDayId          Int
+  cashDay            CashDay       @relation(fields: [cashDayId], references: [id])
+  
+  resolvedProductId  Int?
+  resolvedProduct    Product?      @relation(fields: [resolvedProductId], references: [id])
+  
+  resolvedAt         DateTime?
+  
+  status             PendingStatus @default(PENDING)
+  createdAt          DateTime      @default(now())
 }
 
 // ========== ЛОГИРОВАНИЕ ==========

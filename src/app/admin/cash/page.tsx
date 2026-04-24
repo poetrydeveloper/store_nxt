@@ -64,6 +64,13 @@ export default function CashPage() {
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [simpleAmount, setSimpleAmount] = useState('');
   const [simpleDescription, setSimpleDescription] = useState('');
+  
+  // Состояния для быстрой продажи
+  const [quickSaleForm, setQuickSaleForm] = useState({
+    tempName: '',
+    tempPrice: '',
+    tempQuantity: '1',
+  });
 
   const fetchCashDay = async () => {
     const res = await fetch('/api/cash-days');
@@ -118,6 +125,34 @@ export default function CashPage() {
   const handleRefreshCashDay = async () => {
     await fetchCashDay();
     if (cashDay) await fetchEvents(cashDay.id);
+  };
+
+  const handleQuickSale = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!cashDay) {
+      alert('Нет открытой смены');
+      return;
+    }
+    
+    const res = await fetch('/api/cash/pending', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tempName: quickSaleForm.tempName,
+        tempPrice: parseFloat(quickSaleForm.tempPrice),
+        tempQuantity: parseInt(quickSaleForm.tempQuantity),
+        cashDayId: cashDay.id,
+      }),
+    });
+    
+    if (res.ok) {
+      alert('Продажа отложена! Дооформите её в разделе "Отложенные".');
+      setQuickSaleForm({ tempName: '', tempPrice: '', tempQuantity: '1' });
+    } else {
+      const error = await res.json();
+      alert(error.error);
+    }
   };
 
   useEffect(() => {
@@ -398,6 +433,46 @@ export default function CashPage() {
                   <button onClick={() => { setSelectedUnit(null); setSearchTerm(''); }} className="text-red-500 text-xs">✖</button>
                 </div>
               )}
+            </div>
+
+            {/* Форма быстрой продажи */}
+            <div className="bg-white rounded-lg shadow p-3 mb-3">
+              <h2 className="text-sm font-semibold mb-2">⚡ Быстрая продажа (без учёта)</h2>
+              <form onSubmit={handleQuickSale} className="space-y-2">
+                <input
+                  type="text"
+                  placeholder="Название товара *"
+                  value={quickSaleForm.tempName}
+                  onChange={(e) => setQuickSaleForm({ ...quickSaleForm, tempName: e.target.value })}
+                  className="w-full border rounded px-2 py-1 text-xs"
+                  required
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="number"
+                    placeholder="Цена продажи *"
+                    value={quickSaleForm.tempPrice}
+                    onChange={(e) => setQuickSaleForm({ ...quickSaleForm, tempPrice: e.target.value })}
+                    className="border rounded px-2 py-1 text-xs"
+                    step="0.01"
+                    required
+                  />
+                  <input
+                    type="number"
+                    placeholder="Количество"
+                    value={quickSaleForm.tempQuantity}
+                    onChange={(e) => setQuickSaleForm({ ...quickSaleForm, tempQuantity: e.target.value })}
+                    className="border rounded px-2 py-1 text-xs"
+                    min="1"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full bg-orange-600 text-white py-1.5 rounded text-xs hover:bg-orange-700"
+                >
+                  💨 Продать (без учёта)
+                </button>
+              </form>
             </div>
 
             {/* Формы операций */}

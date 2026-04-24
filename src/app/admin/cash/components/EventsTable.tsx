@@ -26,7 +26,11 @@ export default function EventsTable({ events, cashDay }: EventsTableProps) {
     new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
 
-  const getTypeLabel = (type: string) => {
+  const getTypeLabel = (type: string, description?: string) => {
+    // Проверяем,是否是 быстрая продажа
+    if (description?.startsWith('⚡ БЫСТРАЯ ПРОДАЖА:')) {
+      return '⚡ Быстрая продажа';
+    }
     const labels: Record<string, string> = {
       SALE: 'Продажа',
       RETURN: 'Возврат',
@@ -36,7 +40,10 @@ export default function EventsTable({ events, cashDay }: EventsTableProps) {
     return labels[type] || type;
   };
 
-  const getTypeIcon = (type: string) => {
+  const getTypeIcon = (type: string, description?: string) => {
+    if (description?.startsWith('⚡ БЫСТРАЯ ПРОДАЖА:')) {
+      return '⚡';
+    }
     const icons: Record<string, string> = {
       SALE: '💰',
       RETURN: '🔄',
@@ -46,7 +53,10 @@ export default function EventsTable({ events, cashDay }: EventsTableProps) {
     return icons[type] || '📋';
   };
 
-  const getTypeColor = (type: string) => {
+  const getTypeColor = (type: string, description?: string) => {
+    if (description?.startsWith('⚡ БЫСТРАЯ ПРОДАЖА:')) {
+      return 'text-orange-600';
+    }
     const colors: Record<string, string> = {
       SALE: 'text-green-600',
       RETURN: 'text-red-600',
@@ -83,7 +93,13 @@ export default function EventsTable({ events, cashDay }: EventsTableProps) {
       if (event.type === 'SALE') {
         const item = event.items?.[0];
         const productCode = item?.productUnit?.product?.code || '';
-        const productName = item?.productUnit?.product?.name || event.description || '';
+        let productName = item?.productUnit?.product?.name || event.description || '';
+        
+        // Для быстрых продаж убираем префикс из описания
+        if (event.description?.startsWith('⚡ БЫСТРАЯ ПРОДАЖА:')) {
+          productName = event.description.replace('⚡ БЫСТРАЯ ПРОДАЖА: ', '');
+        }
+        
         const amount = typeof event.totalAmount === 'number' ? event.totalAmount : Number(event.totalAmount);
         
         sheetData.push([
@@ -162,7 +178,13 @@ export default function EventsTable({ events, cashDay }: EventsTableProps) {
             {sortedEvents.map((event) => {
               const item = event.items?.[0];
               const productCode = item?.productUnit?.product?.code || '';
-              const productName = item?.productUnit?.product?.name || event.description || '';
+              let productName = item?.productUnit?.product?.name || event.description || '';
+              
+              // Для быстрых продаж убираем префикс из описания
+              if (event.description?.startsWith('⚡ БЫСТРАЯ ПРОДАЖА:')) {
+                productName = event.description.replace('⚡ БЫСТРАЯ ПРОДАЖА: ', '');
+              }
+              
               const amount = event.totalAmount;
               const price = item?.pricePerUnit || amount;
               
@@ -172,8 +194,8 @@ export default function EventsTable({ events, cashDay }: EventsTableProps) {
                     {new Date(event.createdAt).toLocaleTimeString()}
                   </td>
                   <td className="px-2 py-1">
-                    <span className={getTypeColor(event.type)}>
-                      {getTypeIcon(event.type)} {getTypeLabel(event.type)}
+                    <span className={getTypeColor(event.type, event.description)}>
+                      {getTypeIcon(event.type, event.description)} {getTypeLabel(event.type, event.description)}
                     </span>
                   </td>
                   <td className="px-2 py-1 font-mono text-xs">
