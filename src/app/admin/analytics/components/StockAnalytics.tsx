@@ -52,6 +52,7 @@ export default function StockAnalytics() {
   const [salesData, setSalesData] = useState<Record<number, number>>({});
   const [period, setPeriod] = useState<number>(30);
   const [loading, setLoading] = useState(true);
+  const [showOnlyWithHistory, setShowOnlyWithHistory] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -134,11 +135,19 @@ export default function StockAnalytics() {
     return salesData[productId] || 0;
   };
 
+  const hasEverHadStock = (productId: number): boolean => {
+    return units.some(u => 
+      u.productId === productId && 
+      u.physicalStatus === 'IN_STORE'
+    );
+  };
+
   const hasDisassemblyScenario = (productCode: string): boolean => {
     return scenarios.some(s => s.parentProductCode === productCode && s.isActive);
   };
 
-  const getStockColor = (stock: number) => {
+  const getStockColor = (stock: number, hasHistory: boolean) => {
+    if (!hasHistory) return 'bg-gray-800 border-gray-700 text-white';
     if (stock === 0) return 'bg-red-50 border-red-200';
     if (stock < 3) return 'bg-yellow-50 border-yellow-200';
     return 'bg-white';
@@ -150,7 +159,13 @@ export default function StockAnalytics() {
 
   const renderTree = (items: Category[], level: number = 0) => {
     return items.map((category) => {
-      const categoryProducts = products.filter(p => p.categoryId === category.id);
+      let categoryProducts = products.filter(p => p.categoryId === category.id);
+      
+      // Применяем фильтр, если включен
+      if (showOnlyWithHistory) {
+        categoryProducts = categoryProducts.filter(p => hasEverHadStock(p.id));
+      }
+      
       const hasChildren = category.children && category.children.length > 0;
 
       return (
@@ -173,7 +188,8 @@ export default function StockAnalytics() {
               const sold = getSoldCount(product.id);
               const disassembled = getDisassembledCount(product.id);
               const hasScenario = hasDisassemblyScenario(product.code);
-              const bgColor = getStockColor(stock);
+              const hasHistory = hasEverHadStock(product.id);
+              const bgColor = getStockColor(stock, hasHistory);
               const turnover = sold > 0 ? Math.round(stock / sold * 30) : '-';
               
               return (
@@ -188,7 +204,7 @@ export default function StockAnalytics() {
                     
                     <div className="flex items-center gap-4 ml-auto">
                       <div className="text-center">
-                        <div className={`font-bold text-base ${stock === 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        <div className={`font-bold text-base ${stock === 0 && hasHistory ? 'text-red-600' : stock > 0 ? 'text-green-600' : 'text-gray-400'}`}>
                           {stock}
                         </div>
                         <div className="text-xs text-gray-400">остаток</div>
@@ -277,6 +293,15 @@ export default function StockAnalytics() {
       <div className="flex justify-between items-center mb-3">
         <h1 className="text-lg font-bold">📊 Аналитика остатков</h1>
         <div className="flex gap-2 items-center">
+          <label className="flex items-center gap-1 text-xs">
+            <input
+              type="checkbox"
+              checked={showOnlyWithHistory}
+              onChange={(e) => setShowOnlyWithHistory(e.target.checked)}
+              className="w-3 h-3"
+            />
+            Только товары, которые были в наличии
+          </label>
           <span className="text-xs text-gray-500">Период:</span>
           <select
             value={period}
@@ -296,7 +321,26 @@ export default function StockAnalytics() {
         </div>
       </div>
       
-      <div className="max-h-[calc(100vh-120px)] overflow-y-auto">
+      <div className="text-xs text-gray-400 mb-2 flex gap-4">
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 bg-white border rounded"></div>
+          <span>есть остатки</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 bg-yellow-100 border border-yellow-200 rounded"></div>
+          <span>остаток &lt; 3</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 bg-red-50 border border-red-200 rounded"></div>
+          <span>остаток 0</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 bg-gray-800 border border-gray-700 rounded"></div>
+          <span>никогда не было</span>
+        </div>
+      </div>
+      
+      <div className="max-h-[calc(100vh-160px)] overflow-y-auto">
         {renderTree(categories)}
         {categories.length === 0 && (
           <div className="text-center text-gray-500 py-8 text-sm">

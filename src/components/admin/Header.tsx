@@ -17,7 +17,8 @@ const menuItems = [
   { title: 'Покупатели', href: '/admin/customers' },
   { title: 'Касса', href: '/admin/cash' },
   { title: 'Кассовые дни', href: '/admin/cash-days' },
-  { title: 'Аналитика', href: '/admin/analytics' },  // ← ДОБАВИТЬ ЭТУ СТРОКУ
+  { title: 'Аналитика', href: '/admin/analytics' },
+  { title: 'Дашборд', href: '/admin/analytics/dashboard' },
 ];
 
 export default function Header() {
